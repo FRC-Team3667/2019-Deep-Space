@@ -30,6 +30,9 @@ import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.DigitalInput;
 
+import com.analog.adis16448.frc.ADIS16448_IMU;
+
+
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the IterativeRobot
@@ -57,22 +60,29 @@ public class Robot extends IterativeRobot {
   Joystick _driveController = new Joystick(0);
   private UsbCamera camera;
 
+  // 10 Degrees of Freedom
+  ADIS16448_IMU imu;
+
+  // Network Tables
   NetworkTableEntry xEntry;
   NetworkTableEntry yEntry;
   NetworkTable table;
 
   // Serial Port Information
-  SerialPort theThePort;
+  SerialPort theThePort = null;
 
   // Line Tracker
   private DigitalInput lineTracker = new DigitalInput(9);
+  private DigitalInput lineTracker2 = new DigitalInput(9);
+  private DigitalInput lineTracker3 = new DigitalInput(9);
 
   // Sections of code to include or exclude
-  boolean mDrive = true; // Mecanum Drive
-  boolean dDrive = false; // Differential Drive
+  boolean nTables = false;
+  boolean mDrive = false; // Mecanum Drive
+  boolean dDrive = true; // Differential Drive
   boolean cServer = false; // Camera Server
-  boolean jCam = false; // Jevois Camera
-  boolean lTrack = true; // Line Tracker
+  boolean jCam = true; // Jevois Camera
+  boolean lTrack = false; // Line Tracker
   String theTheString = "the, the, the";
 
   /**
@@ -81,6 +91,11 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotInit() {
+    // 10 Degrees of Freedom
+    imu = new ADIS16448_IMU();
+		imu.calibrate();
+		imu.reset();
+
     // m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     // m_chooser.addOption("My Auto", kCustomAuto);
     // SmartDashboard.putData("Auto choices", m_chooser);
@@ -88,11 +103,13 @@ public class Robot extends IterativeRobot {
       camera = CameraServer.getInstance().startAutomaticCapture(1);
     }
 
-    // Network Tables
-    NetworkTableInstance inst = NetworkTableInstance.getDefault();
-    table = inst.getTable("deepSpace");
-    xEntry = table.getEntry("X");
-    yEntry = table.getEntry("Y");
+    if (nTables) {
+      // Network Tables
+      NetworkTableInstance inst = NetworkTableInstance.getDefault();
+      table = inst.getTable("deepSpace");
+      xEntry = table.getEntry("X");
+      yEntry = table.getEntry("Y");
+    }
 
     // Serial Port Logic
     if (jCam) {
@@ -101,9 +118,18 @@ public class Robot extends IterativeRobot {
       } catch (Exception e) {
         theTheString = e.toString();
       }
+      int retval = 0;
+      if (theThePort != null){
+        retval = theThePort.writeString("ping\n");
+      }
+      if (retval > 0){
+        SmartDashboard.putString("Error", "The the error: " + retval);
+        SmartDashboard.putString("Error2", theThePort.readString());
+      }
     }
   }
 
+  
   /**
    * This function is called every robot packet, no matter the mode. Use this for
    * items like diagnostics that you want ran during disabled, autonomous,
@@ -115,13 +141,20 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotPeriodic() {
-    // if (_driveController.getRawButton(2))
-    // {
-    // double xDouble = Math.random();
-    // double yDouble = Math.random();
-    // xEntry.setDouble(xDouble);
-    // yEntry.setDouble(yDouble);
-    // }
+    // 10 Degrees of Freedom
+    //long zDegree = (int) Math.round(imu.getAngleZ());
+    SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
+
+    // Network Table Test Work
+    if (nTables) {
+      if (_driveController.getRawButton(2)) {
+        double xDouble = Math.random();
+        double yDouble = Math.random();
+        xEntry.setDouble(xDouble);
+        yEntry.setDouble(yDouble);
+      }
+    }
+
     // Line Tracker
     if (lTrack) {
       SmartDashboard.putBoolean("the Status Tracker", lineTracker.get());
@@ -162,7 +195,12 @@ public class Robot extends IterativeRobot {
     if (jCam) {
       if (theThePort != null) {
         theTheString = theThePort.readString();
-        SmartDashboard.putString("the The Port", theTheString);
+        int bytesRcvd = theThePort.getBytesReceived();
+        if (bytesRcvd > 0) {
+          SmartDashboard.putString("the The Port", theTheString);
+        } else {
+          SmartDashboard.putString("the The Port", "Zero bytes");
+        }
       }
     }
   }
