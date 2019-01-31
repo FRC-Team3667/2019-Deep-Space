@@ -44,19 +44,19 @@ public class Robot extends IterativeRobot {
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
-  WPI_TalonSRX _frontTLeftMotor = new WPI_TalonSRX(13);
-  WPI_TalonSRX _frontTRightMotor = new WPI_TalonSRX(12);
-  WPI_TalonSRX _rearTRightMotor = new WPI_TalonSRX(11);
-  WPI_TalonSRX _rearTLeftMotor = new WPI_TalonSRX(10);
-  WPI_VictorSPX _frontVLeftMotor = new WPI_VictorSPX(13);
-  WPI_VictorSPX _frontVRightMotor = new WPI_VictorSPX(12);
-  WPI_VictorSPX _rearVRightMotor = new WPI_VictorSPX(11);
-  WPI_VictorSPX _rearVLeftMotor = new WPI_VictorSPX(10);
-  SpeedControllerGroup leftMotors = new SpeedControllerGroup(_frontTLeftMotor, _rearTLeftMotor);
-  SpeedControllerGroup rightMotors = new SpeedControllerGroup(_frontTRightMotor, _rearTRightMotor);
-  DifferentialDrive _dDrive = new DifferentialDrive(leftMotors, rightMotors);
-  MecanumDrive _mDrive = new MecanumDrive(_frontVLeftMotor, _rearVLeftMotor, _frontVRightMotor, _rearVRightMotor);
-  Joystick _driveController = new Joystick(0);
+  WPI_TalonSRX _frontTLeftMotor = null;
+  WPI_TalonSRX _frontTRightMotor = null;
+  WPI_TalonSRX _rearTRightMotor = null;
+  WPI_TalonSRX _rearTLeftMotor = null;
+  WPI_VictorSPX _frontVLeftMotor = null;
+  WPI_VictorSPX _frontVRightMotor = null;
+  WPI_VictorSPX _rearVRightMotor = null;
+  WPI_VictorSPX _rearVLeftMotor = null;
+  SpeedControllerGroup leftMotors = null;
+  SpeedControllerGroup rightMotors = null;
+  DifferentialDrive _dDrive = null;
+  MecanumDrive _mDrive = null;
+  Joystick _drive = new Joystick(0);
   private UsbCamera camera;
 
   // 10 Degrees of Freedom
@@ -74,6 +74,7 @@ public class Robot extends IterativeRobot {
   DigitalInput lineTracker1 = null;
   DigitalInput lineTracker2 = null;
   DigitalInput lineTracker3 = null;
+  double zDegree = 0;
 
   // Sections of code to include or exclude
   boolean nTables = false;
@@ -82,6 +83,7 @@ public class Robot extends IterativeRobot {
   boolean cServer = true; // Camera Server
   boolean jCam = false; // Jevois Camera
   boolean lTrack = false; // Line Tracker
+  boolean tenDegrees = true; // 10 degrees of freedom
   String theTheString = "the, the, the";
 
   /**
@@ -90,19 +92,38 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotInit() {
-    try {
-      lineTracker1 = new DigitalInput(1);
-      lineTracker2 = new DigitalInput(2);
-      lineTracker3 = new DigitalInput(3);
-    } catch (Exception ex) {
+    if (mDrive) {
+      _frontVLeftMotor = new WPI_VictorSPX(13);
+      _frontVRightMotor = new WPI_VictorSPX(12);
+      _rearVRightMotor = new WPI_VictorSPX(11);
+      _rearVLeftMotor = new WPI_VictorSPX(10);
+      _mDrive = new MecanumDrive(_frontVLeftMotor, _rearVLeftMotor, _frontVRightMotor, _rearVRightMotor);
+    } else if (dDrive) {
+      _frontTLeftMotor = new WPI_TalonSRX(13);
+      _frontTRightMotor = new WPI_TalonSRX(12);
+      _rearTRightMotor = new WPI_TalonSRX(11);
+      _rearTLeftMotor = new WPI_TalonSRX(10);
+      leftMotors = new SpeedControllerGroup(_frontTLeftMotor, _rearTLeftMotor);
+      rightMotors = new SpeedControllerGroup(_frontTRightMotor, _rearTRightMotor);
+      _dDrive = new DifferentialDrive(leftMotors, rightMotors);
     }
 
-    SmartDashboard.putNumber("goTo", 90);
+    if (lTrack) {
+      try {
+        lineTracker1 = new DigitalInput(1);
+        lineTracker2 = new DigitalInput(2);
+        lineTracker3 = new DigitalInput(3);
+      } catch (Exception ex) {
+      }
+    }
 
-    // 10 Degrees of Freedom
-    imu = new ADIS16448_IMU();
-    imu.calibrate();
-    imu.reset();
+    if (tenDegrees) {
+      // 10 Degrees of Freedom
+      SmartDashboard.putNumber("goTo", 90);
+      imu = new ADIS16448_IMU();
+      imu.calibrate();
+      imu.reset();
+    }
 
     // m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     // m_chooser.addOption("My Auto", kCustomAuto);
@@ -151,13 +172,15 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotPeriodic() {
-    // 10 Degrees of Freedom
-    double zDegree = (int) Math.round(imu.getAngleZ());
-    SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
+    if (tenDegrees) {
+      // 10 Degrees of Freedom
+      zDegree = (int) Math.round(imu.getAngleZ());
+      SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
+    }
 
     // Network Table Test Work
     if (nTables) {
-      if (_driveController.getRawButton(2)) {
+      if (_drive.getRawButton(2)) {
         double xDouble = Math.random();
         double yDouble = Math.random();
         xEntry.setDouble(xDouble);
@@ -165,8 +188,15 @@ public class Robot extends IterativeRobot {
       }
     }
 
-    // This is test
-    if (_driveController.getRawButton(4)) {
+    // Setup Stafe values
+    double strafe = 0;
+    if (_drive.getRawAxis(2) > 0.1) {
+      strafe = _drive.getRawAxis(2) * -1.0;
+    } else if (_drive.getRawAxis(3) > 0.1) {
+      strafe = _drive.getRawAxis(3);
+    }
+    if (_drive.getRawButton(4) && tenDegrees) {
+      // Goto within upper and lower boundary
       double goToNum = SmartDashboard.getNumber("goTo", 0);
       double upperB = goToNum + 2;
       double lowerB = goToNum - 2;
@@ -182,39 +212,39 @@ public class Robot extends IterativeRobot {
       if (lTrack) {
         SmartDashboard.putBoolean("the Status Tracker", lineTracker1.get());
       }
-      if (lTrack && _driveController.getRawButton(2)) {
+      if (lTrack && _drive.getRawButton(2)) {
         boolean theStatusTracker = lineTracker1.get();
         if (mDrive) {
-          double strafe = _driveController.getRawAxis(0) * -1;
+          strafe = _drive.getRawAxis(0) * -1;
           if (theStatusTracker) {
             strafe = strafe + .3;
           } else {
             strafe = strafe - .3;
           }
-          _mDrive.driveCartesian(strafe, _driveController.getRawAxis(1) * -1, _driveController.getRawAxis(4), 0);
+          _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
         }
       } else {
         // The the mecanum drive is listed below
         if (mDrive) {
-          _mDrive.driveCartesian(_driveController.getRawAxis(0), _driveController.getRawAxis(1) * -1,
-              _driveController.getRawAxis(4), 0);
+          _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
         }
       }
     }
-    if (_driveController.getRawButton(3)) {
+    if (_drive.getRawButton(3) && tenDegrees) {
       // imu.calibrate();
       imu.reset();
     }
+
     // The the Network Table cool Code is within the if Statement
     if (dDrive) {
-      if (_driveController.getRawButton(1)) {
+      if (_drive.getRawButton(1)) {
         double xDouble = 0;
         xDouble = xEntry.getDouble(xDouble);
         double yDouble = 0;
         yDouble = yEntry.getDouble(yDouble);
         _dDrive.arcadeDrive(xDouble * -1, yDouble);
       } else {
-        _dDrive.arcadeDrive(_driveController.getRawAxis(1) * -1, _driveController.getRawAxis(4));
+        _dDrive.arcadeDrive(_drive.getRawAxis(1) * -1, _drive.getRawAxis(4));
       }
     }
 
