@@ -97,6 +97,8 @@ public class Robot extends IterativeRobot {
     } catch (Exception ex) {
     }
 
+    SmartDashboard.putNumber("goTo", 90);
+
     // 10 Degrees of Freedom
     imu = new ADIS16448_IMU();
     imu.calibrate();
@@ -106,7 +108,10 @@ public class Robot extends IterativeRobot {
     // m_chooser.addOption("My Auto", kCustomAuto);
     // SmartDashboard.putData("Auto choices", m_chooser);
     if (cServer) {
-      camera = CameraServer.getInstance().startAutomaticCapture(1);
+      try {
+        camera = CameraServer.getInstance().startAutomaticCapture(0);
+      } catch (Exception e) {
+      }
     }
 
     if (nTables) {
@@ -147,7 +152,7 @@ public class Robot extends IterativeRobot {
   @Override
   public void robotPeriodic() {
     // 10 Degrees of Freedom
-    // long zDegree = (int) Math.round(imu.getAngleZ());
+    double zDegree = (int) Math.round(imu.getAngleZ());
     SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
 
     // Network Table Test Work
@@ -160,31 +165,44 @@ public class Robot extends IterativeRobot {
       }
     }
 
-    // Line Tracker
-    if (lTrack) {
-      SmartDashboard.putBoolean("the Status Tracker", lineTracker1.get());
-    }
-    if (lTrack && _driveController.getRawButton(2)) {
-      boolean theStatusTracker = lineTracker1.get();
-      if (mDrive) {
-        double strafe = _driveController.getRawAxis(0) * -1;
-        if (theStatusTracker) {
-          strafe = strafe + .3;
+    // This is test
+    if (_driveController.getRawButton(4)) {
+      double goToNum = SmartDashboard.getNumber("goTo", 0);
+      double upperB = goToNum + 2;
+      double lowerB = goToNum - 2;
+      if (zDegree < lowerB || zDegree > upperB) {
+        if (zDegree > goToNum) {
+          _mDrive.driveCartesian(0, 0, -0.25, 0);
         } else {
-          strafe = strafe - .3;
+          _mDrive.driveCartesian(0, 0, 0.25, 0);
         }
-        _mDrive.driveCartesian(strafe, _driveController.getRawAxis(1) * -1, _driveController.getRawAxis(4), 0);
       }
     } else {
-      // The the mecanum drive is listed below
-      if (mDrive) {
-        _mDrive.driveCartesian(_driveController.getRawAxis(0), _driveController.getRawAxis(1) * -1,
-            _driveController.getRawAxis(4), 0);
+      // Line Tracker
+      if (lTrack) {
+        SmartDashboard.putBoolean("the Status Tracker", lineTracker1.get());
+      }
+      if (lTrack && _driveController.getRawButton(2)) {
+        boolean theStatusTracker = lineTracker1.get();
+        if (mDrive) {
+          double strafe = _driveController.getRawAxis(0) * -1;
+          if (theStatusTracker) {
+            strafe = strafe + .3;
+          } else {
+            strafe = strafe - .3;
+          }
+          _mDrive.driveCartesian(strafe, _driveController.getRawAxis(1) * -1, _driveController.getRawAxis(4), 0);
+        }
+      } else {
+        // The the mecanum drive is listed below
+        if (mDrive) {
+          _mDrive.driveCartesian(_driveController.getRawAxis(0), _driveController.getRawAxis(1) * -1,
+              _driveController.getRawAxis(4), 0);
+        }
       }
     }
-
     if (_driveController.getRawButton(3)) {
-      //imu.calibrate();
+      // imu.calibrate();
       imu.reset();
     }
     // The the Network Table cool Code is within the if Statement
