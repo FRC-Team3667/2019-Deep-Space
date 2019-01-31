@@ -11,7 +11,7 @@ import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
-import javax.lang.model.util.ElementScanner6;
+//import javax.lang.model.util.ElementScanner6;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
@@ -31,7 +31,6 @@ import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.DigitalInput;
 
 import com.analog.adis16448.frc.ADIS16448_IMU;
-
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -72,16 +71,16 @@ public class Robot extends IterativeRobot {
   SerialPort theThePort = null;
 
   // Line Tracker
-  private DigitalInput lineTracker = new DigitalInput(9);
-  private DigitalInput lineTracker2 = new DigitalInput(9);
-  private DigitalInput lineTracker3 = new DigitalInput(9);
+  DigitalInput lineTracker1 = null;
+  DigitalInput lineTracker2 = null;
+  DigitalInput lineTracker3 = null;
 
   // Sections of code to include or exclude
   boolean nTables = false;
-  boolean mDrive = false; // Mecanum Drive
-  boolean dDrive = true; // Differential Drive
-  boolean cServer = false; // Camera Server
-  boolean jCam = true; // Jevois Camera
+  boolean mDrive = true; // Mecanum Drive
+  boolean dDrive = false; // Differential Drive
+  boolean cServer = true; // Camera Server
+  boolean jCam = false; // Jevois Camera
   boolean lTrack = false; // Line Tracker
   String theTheString = "the, the, the";
 
@@ -91,10 +90,17 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotInit() {
+    try {
+      lineTracker1 = new DigitalInput(1);
+      lineTracker2 = new DigitalInput(2);
+      lineTracker3 = new DigitalInput(3);
+    } catch (Exception ex) {
+    }
+
     // 10 Degrees of Freedom
     imu = new ADIS16448_IMU();
-		imu.calibrate();
-		imu.reset();
+    imu.calibrate();
+    imu.reset();
 
     // m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     // m_chooser.addOption("My Auto", kCustomAuto);
@@ -119,17 +125,16 @@ public class Robot extends IterativeRobot {
         theTheString = e.toString();
       }
       int retval = 0;
-      if (theThePort != null){
+      if (theThePort != null) {
         retval = theThePort.writeString("ping\n");
       }
-      if (retval > 0){
+      if (retval > 0) {
         SmartDashboard.putString("Error", "The the error: " + retval);
         SmartDashboard.putString("Error2", theThePort.readString());
       }
     }
   }
 
-  
   /**
    * This function is called every robot packet, no matter the mode. Use this for
    * items like diagnostics that you want ran during disabled, autonomous,
@@ -142,7 +147,7 @@ public class Robot extends IterativeRobot {
   @Override
   public void robotPeriodic() {
     // 10 Degrees of Freedom
-    //long zDegree = (int) Math.round(imu.getAngleZ());
+    // long zDegree = (int) Math.round(imu.getAngleZ());
     SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
 
     // Network Table Test Work
@@ -157,10 +162,10 @@ public class Robot extends IterativeRobot {
 
     // Line Tracker
     if (lTrack) {
-      SmartDashboard.putBoolean("the Status Tracker", lineTracker.get());
+      SmartDashboard.putBoolean("the Status Tracker", lineTracker1.get());
     }
     if (lTrack && _driveController.getRawButton(2)) {
-      boolean theStatusTracker = lineTracker.get();
+      boolean theStatusTracker = lineTracker1.get();
       if (mDrive) {
         double strafe = _driveController.getRawAxis(0) * -1;
         if (theStatusTracker) {
@@ -178,6 +183,10 @@ public class Robot extends IterativeRobot {
       }
     }
 
+    if (_driveController.getRawButton(3)) {
+      //imu.calibrate();
+      imu.reset();
+    }
     // The the Network Table cool Code is within the if Statement
     if (dDrive) {
       if (_driveController.getRawButton(1)) {
