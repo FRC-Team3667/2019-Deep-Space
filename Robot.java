@@ -29,10 +29,6 @@ import com.analog.adis16448.frc.ADIS16448_IMU;
  * project.
  */
 public class Robot extends IterativeRobot {
-  private static final String kDefaultAuto = "Default";
-  private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
-  private final SendableChooser<String> m_chooser = new SendableChooser<>();
   WPI_TalonSRX _frontTLeftMotor = null;
   WPI_TalonSRX _frontTRightMotor = null;
   WPI_TalonSRX _rearTRightMotor = null;
@@ -50,6 +46,7 @@ public class Robot extends IterativeRobot {
 
   // 10 Degrees of Freedom
   ADIS16448_IMU imu;
+  double alignmentInertiaRate = 0;
 
   // Network Tables
   NetworkTableEntry xEntry;
@@ -68,6 +65,11 @@ public class Robot extends IterativeRobot {
   double zDegree = 0;
   double targetDegree = 0;
   double origLine2Degree = 0;
+  boolean lTrack0 = false;
+  boolean lTrack1 = false;
+  boolean lTrack2 = false;
+  boolean lTrack3 = false;
+  boolean lTrack4 = false;
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
@@ -117,9 +119,11 @@ public class Robot extends IterativeRobot {
 
     if (lTrack) {
       try {
+        lineTracker0 = new DigitalInput(0);
         lineTracker1 = new DigitalInput(1);
         lineTracker2 = new DigitalInput(2);
         lineTracker3 = new DigitalInput(3);
+        lineTracker4 = new DigitalInput(4);
       } catch (Exception ex) {
       }
     }
@@ -209,36 +213,41 @@ public class Robot extends IterativeRobot {
         SmartDashboard.putNumber("targetDegree", targetDegree);
         if (_drive.getRawButton(4)) { // Line Tracker Enabled
           if (lTrack && _drive.getRawButton(4)) {
-            boolean lTrack0 = lineTracker0.get();
-            boolean lTrack1 = lineTracker1.get();
-            boolean lTrack2 = lineTracker2.get();
-            boolean lTrack3 = lineTracker3.get();
-            boolean lTrack4 = lineTracker4.get();
+            lTrack0 = lineTracker0.get();
+            lTrack1 = lineTracker1.get();
+            lTrack2 = lineTracker2.get();
+            lTrack3 = lineTracker3.get();
+            lTrack4 = lineTracker4.get();
+            SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+            SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+            SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+            SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+            SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
             double forwardMotion = _drive.getRawAxis(1) * -1;
             strafe = _drive.getRawAxis(0) * -1;
             if (lTrack0) {
-              strafe = strafe + 0.35;
-              _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+              strafe = strafe + 0.4;
+              alignmentInertiaRate = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
+              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
               origLine2Degree = -0.0001;
             } else if (lTrack4) {
-              strafe = strafe - 0.35;
-              _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+              strafe = strafe - 0.4;
+              alignmentInertiaRate = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
+              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
               origLine2Degree = -0.0001;
             } else if (lTrack1) {
               strafe = strafe + 0.25;
-              _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+              alignmentInertiaRate = gradientSpeed(0.2, origLine2Degree, targetDegree, zDegree);
+              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
               origLine2Degree = -0.0001;
             } else if (lTrack3) {
               strafe = strafe - 0.25;
-              _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+              alignmentInertiaRate = gradientSpeed(0.2, origLine2Degree, targetDegree, zDegree);
+              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
               origLine2Degree = -0.0001;
             } else if (lTrack2) {
-              double alignmentInertiarRate = gradientSpeed(0.25, origLine2Degree, targetDegree, zDegree);
-              if (zDegree > targetDegree) {
-                _mDrive.driveCartesian(0, forwardMotion, alignmentInertiarRate * -1, 0);
-              } else if (zDegree < targetDegree) {
-                _mDrive.driveCartesian(0, forwardMotion, alignmentInertiarRate, 0);
-              }
+              alignmentInertiaRate = gradientSpeed(0.15, origLine2Degree, targetDegree, zDegree);
+              _mDrive.driveCartesian(0, forwardMotion, alignmentInertiaRate, 0);
             } else {
               _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
               origLine2Degree = -0.0001;
@@ -286,25 +295,29 @@ public class Robot extends IterativeRobot {
     if (slowSpeed < .1) {
       slowSpeed = 0.1;
     }
+    double returnSpeed = fullspeed;
     if (origLine2Degree == -0.0001) {
       origLine2Degree = currentLocation;
     }
     if (desiredLocation >= originalLocation) {
       if (currentLocation > (desiredLocation - originalLocation) / 2) {
-        return halfSpeed;
+        returnSpeed = halfSpeed;
       }
       if (currentLocation > ((desiredLocation - originalLocation) / 4) * 3) {
-        return slowSpeed;
+        returnSpeed = slowSpeed;
       }
     } else {
       if (currentLocation < (originalLocation - desiredLocation) / 2) {
-        return halfSpeed;
+        returnSpeed = halfSpeed;
       }
       if (currentLocation < ((originalLocation - desiredLocation) / 4) * 3) {
-        return slowSpeed;
+        returnSpeed = slowSpeed;
       }
     }
-    return fullspeed;
+    if (zDegree > targetDegree) {
+      returnSpeed = returnSpeed * -1.0;
+    }
+    return returnSpeed;
   }
 
   public double findNearest45Degree(double zDegree) {
@@ -392,10 +405,6 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // autoSelected = SmartDashboard.getString("Auto Selector",
-    // defaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
   }
 
   /**
@@ -403,15 +412,6 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-    case kCustomAuto:
-      // Put custom auto code here
-      break;
-    case kDefaultAuto:
-    default:
-      // Put default auto code here
-      break;
-    }
   }
 
   /**
