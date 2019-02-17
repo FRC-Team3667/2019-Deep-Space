@@ -29,6 +29,10 @@ import com.analog.adis16448.frc.ADIS16448_IMU;
  * project.
  */
 public class Robot extends IterativeRobot {
+  private static final String kDefaultAuto = "Default";
+  private static final String kCustomAuto = "My Auto";
+  private String m_autoSelected;
+  private final SendableChooser<String> m_chooser = new SendableChooser<>();
   WPI_TalonSRX _frontTLeftMotor = null;
   WPI_TalonSRX _frontTRightMotor = null;
   WPI_TalonSRX _rearTRightMotor = null;
@@ -43,10 +47,10 @@ public class Robot extends IterativeRobot {
   MecanumDrive _mDrive = null;
   Joystick _drive = null;
   private UsbCamera camera;
+  private UsbCamera camera2;
 
   // 10 Degrees of Freedom
   ADIS16448_IMU imu;
-  double alignmentInertiaRate = 0;
 
   // Network Tables
   NetworkTableEntry xEntry;
@@ -62,9 +66,15 @@ public class Robot extends IterativeRobot {
   DigitalInput lineTracker2 = null;
   DigitalInput lineTracker3 = null;
   DigitalInput lineTracker4 = null;
+  // DigitalInput lineTracker5 = null;
+  // DigitalInput lineTracker6 = null;
+  // DigitalInput lineTracker7 = null;
+  // DigitalInput lineTracker8 = null;
+
   double zDegree = 0;
   double targetDegree = 0;
   double origLine2Degree = 0;
+  double rotationCounter = 1;
   boolean lTrack0 = false;
   boolean lTrack1 = false;
   boolean lTrack2 = false;
@@ -124,13 +134,62 @@ public class Robot extends IterativeRobot {
         lineTracker2 = new DigitalInput(2);
         lineTracker3 = new DigitalInput(3);
         lineTracker4 = new DigitalInput(4);
+        // lineTracker5 = new DigitalInput(5);
+        // lineTracker6 = new DigitalInput(6);
+        // lineTracker7 = new DigitalInput(7);
+        // lineTracker8 = new DigitalInput(8);
       } catch (Exception ex) {
       }
     }
 
+    try {
+      lineTracker0 = new DigitalInput(0);
+    } catch (Exception ex) {
+    }
+
+    try {
+      lineTracker1 = new DigitalInput(1);
+    } catch (Exception ex) {
+    }
+
+    try {
+      lineTracker2 = new DigitalInput(2);
+    } catch (Exception ex) {
+    }
+
+    try {
+      lineTracker3 = new DigitalInput(3);
+    } catch (Exception ex) {
+    }
+
+    try {
+      lineTracker4 = new DigitalInput(4);
+    } catch (Exception ex) {
+    }
+
+    // try {
+    // lineTracker5 = new DigitalInput(5);
+    // } catch (Exception ex) {
+    // }
+
+    // try {
+    // lineTracker6 = new DigitalInput(6);
+    // } catch (Exception ex) {
+    // }
+
+    // try {
+    // lineTracker7 = new DigitalInput(7);
+    // } catch (Exception ex) {
+    // }
+
+    // try {
+    // lineTracker8 = new DigitalInput(8);
+    // } catch (Exception ex) {
+    // }
+
     if (tenDegrees) {
+      // 10 Degrees of Freedom
       try {
-        // 10 Degrees of Freedom
         imu = new ADIS16448_IMU();
       } catch (Exception e) {
         imu = new ADIS16448_IMU();
@@ -139,6 +198,7 @@ public class Robot extends IterativeRobot {
         imu.calibrate();
         imu.reset();
       } catch (Exception e) {
+
       }
     }
 
@@ -149,6 +209,11 @@ public class Robot extends IterativeRobot {
       try {
         camera = CameraServer.getInstance().startAutomaticCapture(0);
       } catch (Exception e) {
+      }
+      try {
+        camera2 = CameraServer.getInstance().startAutomaticCapture(1);
+      } catch (Exception e) {
+        // TODO: handle exception
       }
     }
 
@@ -189,11 +254,12 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotPeriodic() {
-    if (tenDegrees) {
-      // 10 Degrees of Freedom
-      zDegree = (int) Math.round(imu.getAngleZ());
-      SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
-    }
+
+    // if (tenDegrees) {
+    // // 10 Degrees of Freedom
+    // zDegree = (int) Math.round(imu.getAngleZ());
+    // SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
+    // }
 
     // Network Table Test Work
     if (nTables) {
@@ -214,63 +280,56 @@ public class Robot extends IterativeRobot {
     }
     if (mDrive) {
       if (tenDegrees) {
-        zDegree = (int) Math.round(imu.getAngleZ());
+        zDegree = Math.round(imu.getAngleZ()) % 360;
+        if (zDegree < 0) {
+          zDegree += 360;
+        }
         SmartDashboard.putNumber("zDegree", zDegree);
         targetDegree = findNearest45Degree(zDegree);
         SmartDashboard.putNumber("targetDegree", targetDegree);
-        if (lTrack) {
-          lTrack0 = lineTracker0.get();
-          lTrack1 = lineTracker1.get();
-          lTrack2 = lineTracker2.get();
-          lTrack3 = lineTracker3.get();
-          lTrack4 = lineTracker4.get();
-          SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
-          SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
-          SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
-          SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
-          SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
-        }
+        lTrack0 = lineTracker0.get();
+        lTrack1 = lineTracker1.get();
+        lTrack2 = lineTracker2.get();
+        lTrack3 = lineTracker3.get();
+        lTrack4 = lineTracker4.get();
+
+        SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+        SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+        SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+        SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+        SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
+
         if (_drive.getRawButton(4)) { // Line Tracker Enabled
-          if (lTrack && _drive.getRawButton(4)) {
-            double forwardMotion = _drive.getRawAxis(1) * -1;
-            strafe = _drive.getRawAxis(0) * -1;
-            if (lTrack0) {
-              strafe = strafe + 0.4;
-              alignmentInertiaRate = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
-              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
-              origLine2Degree = -0.0001;
-            } else if (lTrack4) {
-              strafe = strafe - 0.4;
-              alignmentInertiaRate = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
-              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
-              origLine2Degree = -0.0001;
-            } else if (lTrack1) {
-              strafe = strafe + 0.2;
-              alignmentInertiaRate = gradientSpeed(0.2, origLine2Degree, targetDegree, zDegree);
-              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
-              origLine2Degree = -0.0001;
-            } else if (lTrack3) {
-              strafe = strafe - 0.2;
-              alignmentInertiaRate = gradientSpeed(0.2, origLine2Degree, targetDegree, zDegree);
-              _mDrive.driveCartesian(strafe, forwardMotion, alignmentInertiaRate, 0);
-              origLine2Degree = -0.0001;
-            } else if (lTrack2) {
-              alignmentInertiaRate = gradientSpeed(0.15, origLine2Degree, targetDegree, zDegree);
-              _mDrive.driveCartesian(0, forwardMotion, alignmentInertiaRate, 0);
-            } else {
-              _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-              origLine2Degree = -0.0001;
+          double forwardMotion = _drive.getRawAxis(1) * -1;
+          strafe = _drive.getRawAxis(0) * -1;
+          if (lTrack0) {
+            strafe = strafe + 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, 0.3, 0);
+          } else if (lTrack4) {
+            strafe = strafe - 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, 0.3, 0);
+          } else if (lTrack1) {
+            strafe = strafe + 0.2;
+            _mDrive.driveCartesian(strafe, forwardMotion, 0.2, 0);
+          } else if (lTrack3) {
+            strafe = strafe - 0.2;
+            _mDrive.driveCartesian(strafe, forwardMotion, 0.2, 0);
+          } else if (lTrack2) {
+            if (zDegree > targetDegree) {
+              _mDrive.driveCartesian(0, forwardMotion, 0.15 * -1, 0);
+            } else if (zDegree < targetDegree) {
+              _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
             }
+          } else {
+            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
           }
         } else {
           _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
-          origLine2Degree = -0.0001;
         }
       } else {
         // The the mecanum drive is listed below
         if (mDrive) {
           _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
-          origLine2Degree = -0.0001;
         }
       }
     }
@@ -286,9 +345,9 @@ public class Robot extends IterativeRobot {
         xDouble = xEntry.getDouble(xDouble);
         double yDouble = 0;
         yDouble = yEntry.getDouble(yDouble);
-        _dDrive.arcadeDrive(xDouble * -1, yDouble);
+        _dDrive.arcadeDrive(xDouble * -1.0, yDouble);
       } else {
-        _dDrive.arcadeDrive(_drive.getRawAxis(1) * -1, _drive.getRawAxis(4));
+        _dDrive.arcadeDrive(_drive.getRawAxis(1) * -1.0, _drive.getRawAxis(4));
       }
     }
   }
@@ -304,29 +363,25 @@ public class Robot extends IterativeRobot {
     if (slowSpeed < .1) {
       slowSpeed = 0.1;
     }
-    double returnSpeed = fullspeed;
     if (origLine2Degree == -0.0001) {
       origLine2Degree = currentLocation;
     }
     if (desiredLocation >= originalLocation) {
       if (currentLocation > (desiredLocation - originalLocation) / 2) {
-        returnSpeed = halfSpeed;
+        return halfSpeed;
       }
       if (currentLocation > ((desiredLocation - originalLocation) / 4) * 3) {
-        returnSpeed = slowSpeed;
+        return slowSpeed;
       }
     } else {
       if (currentLocation < (originalLocation - desiredLocation) / 2) {
-        returnSpeed = halfSpeed;
+        return halfSpeed;
       }
       if (currentLocation < ((originalLocation - desiredLocation) / 4) * 3) {
-        returnSpeed = slowSpeed;
+        return slowSpeed;
       }
     }
-    if (zDegree > targetDegree) {
-      returnSpeed = returnSpeed * -1.0;
-    }
-    return returnSpeed;
+    return fullspeed;
   }
 
   public double findNearest45Degree(double zDegree) {
@@ -359,6 +414,9 @@ public class Robot extends IterativeRobot {
       case 315:
         retDoub = 315;
         break;
+      case 360:
+        retDoub = 0;
+        break;
       default:
         break;
       }
@@ -387,6 +445,9 @@ public class Robot extends IterativeRobot {
       case 315:
         retDoub = 315;
         break;
+      case 360:
+        retDoub = 0;
+        break;
       default:
         break;
       }
@@ -414,6 +475,10 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void autonomousInit() {
+    m_autoSelected = m_chooser.getSelected();
+    // autoSelected = SmartDashboard.getString("Auto Selector",
+    // defaultAuto);
+    System.out.println("Auto selected: " + m_autoSelected);
   }
 
   /**
@@ -421,6 +486,15 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void autonomousPeriodic() {
+    // switch (m_autoSelected) {
+    // case kCustomAuto:
+    // // Put custom auto code here
+    // break;
+    // case kDefaultAuto:
+    // default:
+    // // Put default auto code here
+    // break;
+    // }
   }
 
   /**
