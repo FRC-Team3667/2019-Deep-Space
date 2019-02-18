@@ -47,7 +47,6 @@ public class Robot extends IterativeRobot {
   MecanumDrive _mDrive = null;
   Joystick _drive = null;
   private UsbCamera camera;
-  private UsbCamera camera2;
 
   // 10 Degrees of Freedom
   ADIS16448_IMU imu;
@@ -75,6 +74,13 @@ public class Robot extends IterativeRobot {
   double targetDegree = 0;
   double origLine2Degree = 0;
   double rotationCounter = 1;
+  double rotation = 0;
+  double forwardMotion = 0;
+  boolean lTrack0 = false;
+  boolean lTrack1 = false;
+  boolean lTrack2 = false;
+  boolean lTrack3 = false;
+  boolean lTrack4 = false;
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
@@ -184,9 +190,17 @@ public class Robot extends IterativeRobot {
 
     if (tenDegrees) {
       // 10 Degrees of Freedom
-      imu = new ADIS16448_IMU();
-      imu.calibrate();
-      imu.reset();
+      try {
+        imu = new ADIS16448_IMU();
+      } catch (Exception e) {
+        imu = new ADIS16448_IMU();
+      }
+      try {
+        imu.calibrate();
+        imu.reset();
+      } catch (Exception e) {
+
+      }
     }
 
     // m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
@@ -196,11 +210,6 @@ public class Robot extends IterativeRobot {
       try {
         camera = CameraServer.getInstance().startAutomaticCapture(0);
       } catch (Exception e) {
-      }
-      try {
-        camera2 = CameraServer.getInstance().startAutomaticCapture(1);
-      } catch (Exception e) {
-        // TODO: handle exception
       }
     }
 
@@ -272,65 +281,51 @@ public class Robot extends IterativeRobot {
           zDegree += 360;
         }
         SmartDashboard.putNumber("zDegree", zDegree);
-        targetDegree = findNearest45Degree(zDegree);
+        targetDegree = find45Degree(zDegree);
         SmartDashboard.putNumber("targetDegree", targetDegree);
-        SmartDashboard.putBoolean("Line Tracker 0", lineTracker0.get());
-        SmartDashboard.putBoolean("Line Tracker 1", lineTracker1.get());
-        SmartDashboard.putBoolean("Line Tracker 2", lineTracker2.get());
-        SmartDashboard.putBoolean("Line Tracker 3", lineTracker3.get());
-        SmartDashboard.putBoolean("Line Tracker 4", lineTracker4.get());
-        // SmartDashboard.putBoolean("Line Tracker 5", lineTracker0.get());
-        // SmartDashboard.putBoolean("Line Tracker 6", lineTracker0.get());
-        // SmartDashboard.putBoolean("Line Tracker 7", lineTracker0.get());
-        // SmartDashboard.putBoolean("Line Tracker 8", lineTracker0.get());
+        lTrack0 = lineTracker0.get();
+        lTrack1 = lineTracker1.get();
+        lTrack2 = lineTracker2.get();
+        lTrack3 = lineTracker3.get();
+        lTrack4 = lineTracker4.get();
+
+        SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+        SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+        SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+        SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+        SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
+        //strafe = _drive.getRawAxis(0) * -1;
+        double forwardMotion = _drive.getRawAxis(1) * -1;
         if (_drive.getRawButton(4)) { // Line Tracker Enabled
-          boolean lTrack0 = lineTracker0.get();
-          boolean lTrack1 = lineTracker1.get();
-          boolean lTrack2 = lineTracker2.get();
-          boolean lTrack3 = lineTracker3.get();
-          boolean lTrack4 = lineTracker4.get();
-          // boolean lTrack5 = lineTracker0.get();
-          // boolean lTrack6 = lineTracker0.get();
-          // boolean lTrack7 = lineTracker0.get();
-          // boolean lTrack8 = lineTracker0.get();
-          double forwardMotion = _drive.getRawAxis(1) * -1;
-          strafe = _drive.getRawAxis(0) * -1;
+          rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
           if (lTrack0) {
-            strafe = strafe + 0.35;
-            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-            origLine2Degree = -0.0001;
+            strafe = strafe + 0.6;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack4) {
-            strafe = strafe - 0.35;
-            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-            origLine2Degree = -0.0001;
+            strafe = strafe - 0.6;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack1) {
-            strafe = strafe + 0.25;
-            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-            origLine2Degree = -0.0001;
+            strafe = strafe + 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack3) {
-            strafe = strafe - 0.25;
-            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-            origLine2Degree = -0.0001;
+            strafe = strafe - 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack2) {
-            double alignmentInertiarRate = gradientSpeed(0.25, origLine2Degree, targetDegree, zDegree);
             if (zDegree > targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, alignmentInertiarRate * -1, 0);
+              _mDrive.driveCartesian(0, forwardMotion, 0.15 * -1, 0);
             } else if (zDegree < targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, alignmentInertiarRate, 0);
+              _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
             }
           } else {
             _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
-            origLine2Degree = -0.0001;
           }
         } else {
-          _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
-          origLine2Degree = -0.0001;
+          _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
         }
       } else {
         // The the mecanum drive is listed below
         if (mDrive) {
           _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
-          origLine2Degree = -0.0001;
         }
       }
     }
@@ -364,97 +359,106 @@ public class Robot extends IterativeRobot {
     if (slowSpeed < .1) {
       slowSpeed = 0.1;
     }
+    double returnSpeed = fullspeed;
     if (origLine2Degree == -0.0001) {
       origLine2Degree = currentLocation;
     }
     if (desiredLocation >= originalLocation) {
       if (currentLocation > (desiredLocation - originalLocation) / 2) {
-        return halfSpeed;
+        returnSpeed = halfSpeed;
       }
       if (currentLocation > ((desiredLocation - originalLocation) / 4) * 3) {
-        return slowSpeed;
+        returnSpeed = slowSpeed;
       }
     } else {
       if (currentLocation < (originalLocation - desiredLocation) / 2) {
-        return halfSpeed;
+        returnSpeed = halfSpeed;
       }
       if (currentLocation < ((originalLocation - desiredLocation) / 4) * 3) {
-        return slowSpeed;
+        returnSpeed = slowSpeed;
       }
     }
-    return fullspeed;
+    if (zDegree > targetDegree) {
+      returnSpeed = returnSpeed * -1.0;
+    }
+    return returnSpeed;
   }
 
-  public double findNearest45Degree(double zDegree) {
+  public double find45Degree(double zDegree) {
     double retDoub = -1;
-    int plusOne = (int) zDegree;
-    int minusOne = (int) zDegree;
-    while (retDoub < 0) {
-      switch (plusOne) {
-      case 0:
-        retDoub = 0;
-        break;
-      // case 45:
-      //   retDoub = 45;
-      //   break;
-      case 90:
-        retDoub = 90;
-        break;
-      // case 135:
-      //   retDoub = 135;
-      //   break;
-      case 180:
-        retDoub = 180;
-        break;
-      // case 225:
-      //   retDoub = 225;
-      //   break;
-      case 270:
-        retDoub = 270;
-        break;
-      // case 315:
-      //   retDoub = 315;
-      //   break;
-      case 360:
-        retDoub = 0;
-        break;
-      default:
-        break;
-      }
-      switch (minusOne) {
-      case 0:
-        retDoub = 0;
-        break;
-      // case 45:
-      //   retDoub = 45;
-      //   break;
-      case 90:
-        retDoub = 90;
-        break;
-      // case 135:
-      //   retDoub = 135;
-      //   break;
-      case 180:
-        retDoub = 180;
-        break;
-      // case 225:
-      //   retDoub = 225;
-      //   break;
-      case 270:
-        retDoub = 270;
-        break;
-      // case 315:
-      //   retDoub = 315;
-      //   break;
-      case 360:
-        retDoub = 0;
-        break;
-      default:
-        break;
-      }
-      if (retDoub < 0) {
-        plusOne++;
-        minusOne--;
+    int povVal = _drive.getPOV();
+    if (povVal >= 0) {
+      retDoub = povVal;
+    } else {
+      int plusOne = (int) zDegree;
+      int minusOne = (int) zDegree;
+      while (retDoub < 0) {
+        switch (plusOne) {
+        case 0:
+          retDoub = 0;
+          break;
+        case 45:
+          retDoub = 45;
+          break;
+        case 90:
+          retDoub = 90;
+          break;
+        case 135:
+          retDoub = 135;
+          break;
+        case 180:
+          retDoub = 180;
+          break;
+        case 225:
+          retDoub = 225;
+          break;
+        case 270:
+          retDoub = 270;
+          break;
+        case 315:
+          retDoub = 315;
+          break;
+        case 360:
+          retDoub = 0;
+          break;
+        default:
+          break;
+        }
+        switch (minusOne) {
+        case 0:
+          retDoub = 0;
+          break;
+        case 45:
+          retDoub = 45;
+          break;
+        case 90:
+          retDoub = 90;
+          break;
+        case 135:
+          retDoub = 135;
+          break;
+        case 180:
+          retDoub = 180;
+          break;
+        case 225:
+          retDoub = 225;
+          break;
+        case 270:
+          retDoub = 270;
+          break;
+        case 315:
+          retDoub = 315;
+          break;
+        case 360:
+          retDoub = 0;
+          break;
+        default:
+          break;
+        }
+        if (retDoub < 0) {
+          plusOne++;
+          minusOne--;
+        }
       }
     }
     return retDoub;
