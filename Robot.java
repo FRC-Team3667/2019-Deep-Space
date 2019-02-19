@@ -1,12 +1,13 @@
 package frc.robot;
 
-import edu.wpi.first.wpilibj.IterativeRobot;
+import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Joystick;
@@ -28,7 +29,7 @@ import com.analog.adis16448.frc.ADIS16448_IMU;
  * creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends IterativeRobot {
+public class Robot extends TimedRobot {
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
@@ -45,7 +46,8 @@ public class Robot extends IterativeRobot {
   SpeedControllerGroup rightMotors = null;
   DifferentialDrive _dDrive = null;
   MecanumDrive _mDrive = null;
-  Joystick _drive = null;
+  Joystick _joy1 = null;
+  Joystick _joy2 = null;
   private UsbCamera camera;
 
   // 10 Degrees of Freedom
@@ -95,20 +97,29 @@ public class Robot extends IterativeRobot {
   boolean runningForward = false;
   boolean runningBackward = false;
 
+  // Timer
+  Timer robotTimer = new Timer();
+
+  // Guard It Safe, this's the IMU calibration one
+  boolean didItAlready = false;
+
   /**
    * This function is run when the robot is first started up and should be used
    * for any initialization code.
    */
   @Override
   public void robotInit() {
+
+    robotTimer.start(); // Start the timer for IMU Calibration Guard It Safes.
+
     // Setup the joystick
     try {
-      _drive = new Joystick(0);
+      _joy1 = new Joystick(0);
     } catch (Exception e0) {
-      try {
-        _drive = new Joystick(1);
-      } catch (Exception e1) {
-      }
+    }
+    try {
+      _joy2 = new Joystick(1);
+    } catch (Exception e1) {
     }
 
     // Setup the Drive System
@@ -250,6 +261,20 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void robotPeriodic() {
+    // To calibrate imu manually, press start on both controllers. Only usable
+    // before auton.
+    // NOTE: The 3667 Programmers are not liable for any mistakes that are made if
+    // you accidentally
+    // press these buttons. Oh yes, and if you think it was our fault we will find
+    // you and you will
+    // regret ever thinking so.
+    if (_joy1.getRawButton(8) && _joy2.getRawButton(8)) {
+      imu.calibrate();
+      imu.reset();
+    }
+    if (!didItAlready) {
+      imuCalibration();
+    }
 
     // if (tenDegrees) {
     // // 10 Degrees of Freedom
@@ -259,7 +284,7 @@ public class Robot extends IterativeRobot {
 
     // Network Table Test Work
     if (nTables) {
-      if (_drive.getRawButton(2)) {
+      if (_joy1.getRawButton(2)) {
         double xDouble = Math.random();
         double yDouble = Math.random();
         xEntry.setDouble(xDouble);
@@ -269,10 +294,10 @@ public class Robot extends IterativeRobot {
 
     // Setup Stafe values
     double strafe = 0;
-    if (_drive.getRawAxis(2) > 0.1) {
-      strafe = _drive.getRawAxis(2) * -1.0;
-    } else if (_drive.getRawAxis(3) > 0.1) {
-      strafe = _drive.getRawAxis(3);
+    if (_joy1.getRawAxis(2) > 0.1) {
+      strafe = _joy1.getRawAxis(2) * -1.0;
+    } else if (_joy1.getRawAxis(3) > 0.1) {
+      strafe = _joy1.getRawAxis(3);
     }
     if (mDrive) {
       if (tenDegrees) {
@@ -294,9 +319,9 @@ public class Robot extends IterativeRobot {
         SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
         SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
         SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
-        strafe = _drive.getRawAxis(0) * -1;
-        double forwardMotion = _drive.getRawAxis(1) * -1;
-        if (_drive.getRawButton(4)) { // Line Tracker Enabled
+        // strafe = _joy1.getRawAxis(0) * -1;
+        double forwardMotion = _joy1.getRawAxis(1) * -1;
+        if (_joy2.getRawButton(4) || _joy1.getRawButton(4)) { // Line Tracker Enabled
           rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
           if (lTrack0) {
             strafe = strafe + 0.6;
@@ -317,34 +342,49 @@ public class Robot extends IterativeRobot {
               _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
             }
           } else {
-            _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+            _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
           }
         } else {
-          _mDrive.driveCartesian(strafe, forwardMotion, _drive.getRawAxis(4), 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
         }
       } else {
         // The the mecanum drive is listed below
         if (mDrive) {
-          _mDrive.driveCartesian(strafe, _drive.getRawAxis(1) * -1, _drive.getRawAxis(4), 0);
+          _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
         }
       }
     }
 
-    if (_drive.getRawButton(3) && tenDegrees) {
+    if (_joy1.getRawButton(3) && tenDegrees) {
       imu.reset();
     }
 
     // The the Network Table cool Code is within the if Statement
     if (dDrive) {
-      if (_drive.getRawButton(1)) {
+      if (_joy1.getRawButton(1)) {
         double xDouble = 0;
         xDouble = xEntry.getDouble(xDouble);
         double yDouble = 0;
         yDouble = yEntry.getDouble(yDouble);
         _dDrive.arcadeDrive(xDouble * -1.0, yDouble);
       } else {
-        _dDrive.arcadeDrive(_drive.getRawAxis(1) * -1.0, _drive.getRawAxis(4));
+        _dDrive.arcadeDrive(_joy1.getRawAxis(1) * -1.0, _joy1.getRawAxis(4));
       }
+    }
+  }
+
+  // This, before match has begun, should go periodically until we did it.
+  private void imuCalibration() {
+    if (Timer.getMatchTime() > 0) {
+      robotTimer.stop();
+      didItAlready = true;
+    } else if (robotTimer.get() > 300.0) // if 5+ mins have passed since power on
+    {
+      // Do the calibration. This takes 6~ seconds.
+      imu.calibrate();
+      imu.reset();
+      didItAlready = true;
+      robotTimer.stop();
     }
   }
 
@@ -378,6 +418,11 @@ public class Robot extends IterativeRobot {
         returnSpeed = slowSpeed;
       }
     }
+
+    // At this moment, when you're wanting to go to 0, we must tell you:
+    if (targetDegree == 0 && zDegree > 270) {
+      returnSpeed = returnSpeed * -1.0; // negative * negative
+    }
     if (zDegree > targetDegree) {
       returnSpeed = returnSpeed * -1.0;
     }
@@ -386,9 +431,12 @@ public class Robot extends IterativeRobot {
 
   public double find45Degree(double zDegree) {
     double retDoub = -1;
-    int povVal = _drive.getPOV();
-    if (povVal >= 0) {
-      retDoub = povVal;
+    int povVal1 = _joy1.getPOV();
+    int povVal2 = _joy2.getPOV();
+    if (povVal2 >= 0) {
+      retDoub = povVal2;
+    } else if (povVal1 >= 0) {
+      retDoub = povVal1;
     } else {
       int plusOne = (int) zDegree;
       int minusOne = (int) zDegree;
@@ -491,15 +539,7 @@ public class Robot extends IterativeRobot {
    */
   @Override
   public void autonomousPeriodic() {
-    // switch (m_autoSelected) {
-    // case kCustomAuto:
-    // // Put custom auto code here
-    // break;
-    // case kDefaultAuto:
-    // default:
-    // // Put default auto code here
-    // break;
-    // }
+
   }
 
   /**
