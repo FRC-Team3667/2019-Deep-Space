@@ -15,7 +15,7 @@ import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTable;
-import edu.wpi.first.wpilibj.CameraServer;
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -67,11 +67,7 @@ public class Robot extends TimedRobot {
   DigitalInput lineTracker2 = null;
   DigitalInput lineTracker3 = null;
   DigitalInput lineTracker4 = null;
-  // DigitalInput lineTracker5 = null;
-  // DigitalInput lineTracker6 = null;
-  // DigitalInput lineTracker7 = null;
-  // DigitalInput lineTracker8 = null;
-
+  
   double zDegree = 0;
   double targetDegree = 0;
   double origLine2Degree = 0;
@@ -102,6 +98,7 @@ public class Robot extends TimedRobot {
 
   // Guard It Safe, this's the IMU calibration one
   boolean didItAlready = false;
+  boolean calibration = false; // Check for if IMU Calibration's happening or not
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -146,11 +143,7 @@ public class Robot extends TimedRobot {
         lineTracker2 = new DigitalInput(2);
         lineTracker3 = new DigitalInput(3);
         lineTracker4 = new DigitalInput(4);
-        // lineTracker5 = new DigitalInput(5);
-        // lineTracker6 = new DigitalInput(6);
-        // lineTracker7 = new DigitalInput(7);
-        // lineTracker8 = new DigitalInput(8);
-      } catch (Exception ex) {
+       } catch (Exception ex) {
       }
     }
 
@@ -179,26 +172,6 @@ public class Robot extends TimedRobot {
     } catch (Exception ex) {
     }
 
-    // try {
-    // lineTracker5 = new DigitalInput(5);
-    // } catch (Exception ex) {
-    // }
-
-    // try {
-    // lineTracker6 = new DigitalInput(6);
-    // } catch (Exception ex) {
-    // }
-
-    // try {
-    // lineTracker7 = new DigitalInput(7);
-    // } catch (Exception ex) {
-    // }
-
-    // try {
-    // lineTracker8 = new DigitalInput(8);
-    // } catch (Exception ex) {
-    // }
-
     if (tenDegrees) {
       // 10 Degrees of Freedom
       try {
@@ -214,10 +187,7 @@ public class Robot extends TimedRobot {
       }
     }
 
-    // m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
-    // m_chooser.addOption("My Auto", kCustomAuto);
-    // SmartDashboard.putData("Auto choices", m_chooser);
-    if (cServer) {
+   if (cServer) {
       try {
         camera = CameraServer.getInstance().startAutomaticCapture(0);
       } catch (Exception e) {
@@ -248,6 +218,9 @@ public class Robot extends TimedRobot {
         SmartDashboard.putString("Error2", theThePort.readString());
       }
     }
+
+  SmartDashboard.putBoolean("IMU Calibrating", calibration);
+
   }
 
   /**
@@ -269,8 +242,7 @@ public class Robot extends TimedRobot {
     // you and you will
     // regret ever thinking so.
     if (_joy1.getRawButton(8) && _joy2.getRawButton(8)) {
-      imu.calibrate();
-      imu.reset();
+      manualImuCalibration();
     }
     if (!didItAlready) {
       imuCalibration();
@@ -376,16 +348,33 @@ public class Robot extends TimedRobot {
   // This, before match has begun, should go periodically until we did it.
   private void imuCalibration() {
     if (Timer.getMatchTime() > 0) {
+      
       robotTimer.stop();
       didItAlready = true;
+      
     } else if (robotTimer.get() > 300.0) // if 5+ mins have passed since power on
     {
       // Do the calibration. This takes 6~ seconds.
+      calibration = true;
+      SmartDashboard.putBoolean("IMU Calibrating", calibration);
       imu.calibrate();
       imu.reset();
       didItAlready = true;
+      calibration = false;
+      SmartDashboard.putBoolean("IMU Calibrating", calibration);
       robotTimer.stop();
     }
+  }
+
+  // Manually calibrate the IMU whenever, disable or change for testing
+  private void manualImuCalibration()
+  {
+      calibration = true;
+      SmartDashboard.putBoolean("IMU Calibrating", calibration);
+      imu.calibrate();
+      imu.reset();
+      calibration = false;
+      SmartDashboard.putBoolean("IMU Calibrating", calibration);
   }
 
   // Attribute a near-gradial speed change
