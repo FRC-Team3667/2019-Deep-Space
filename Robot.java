@@ -30,10 +30,6 @@ import com.analog.adis16448.frc.ADIS16448_IMU;
  * project.
  */
 public class Robot extends TimedRobot {
-  private static final String kDefaultAuto = "Default";
-  private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
-  private final SendableChooser<String> m_chooser = new SendableChooser<>();
   WPI_TalonSRX _frontTLeftMotor = null;
   WPI_TalonSRX _frontTRightMotor = null;
   WPI_TalonSRX _rearTRightMotor = null;
@@ -48,7 +44,7 @@ public class Robot extends TimedRobot {
   MecanumDrive _mDrive = null;
   Joystick _joy1 = null;
   Joystick _joy2 = null;
-  private UsbCamera camera;
+  private UsbCamera camera = null;
 
   // 10 Degrees of Freedom
   ADIS16448_IMU imu;
@@ -67,8 +63,10 @@ public class Robot extends TimedRobot {
   DigitalInput lineTracker2 = null;
   DigitalInput lineTracker3 = null;
   DigitalInput lineTracker4 = null;
-  
+
   double zDegree = 0;
+  double pastZDegree = zDegree;
+  int zDegreeIterations = 0;
   double targetDegree = 0;
   double origLine2Degree = 0;
   double rotationCounter = 1;
@@ -89,16 +87,14 @@ public class Robot extends TimedRobot {
   boolean lTrack = true; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
 
-  String theTheString = "the, the, the";
-  boolean runningForward = false;
-  boolean runningBackward = false;
+  String jCamString = " ";
 
   // Timer
   Timer robotTimer = new Timer();
 
   // Guard It Safe, this's the IMU calibration one
   boolean didItAlready = false;
-  boolean calibration = false; // Check for if IMU Calibration's happening or not
+  boolean imuIsWorkingCorrectly = true; // IMU is Working or Not
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -143,7 +139,7 @@ public class Robot extends TimedRobot {
         lineTracker2 = new DigitalInput(2);
         lineTracker3 = new DigitalInput(3);
         lineTracker4 = new DigitalInput(4);
-       } catch (Exception ex) {
+      } catch (Exception ex) {
       }
     }
 
@@ -187,7 +183,7 @@ public class Robot extends TimedRobot {
       }
     }
 
-   if (cServer) {
+    if (cServer) {
       try {
         camera = CameraServer.getInstance().startAutomaticCapture(0);
       } catch (Exception e) {
@@ -207,7 +203,7 @@ public class Robot extends TimedRobot {
       try {
         theThePort = new SerialPort(115200, Port.kUSB);
       } catch (Exception e) {
-        theTheString = e.toString();
+        jCamString = e.toString();
       }
       int retval = 0;
       if (theThePort != null) {
@@ -219,7 +215,7 @@ public class Robot extends TimedRobot {
       }
     }
 
-  SmartDashboard.putBoolean("IMU Calibrating", calibration);
+    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
 
   }
 
@@ -325,10 +321,24 @@ public class Robot extends TimedRobot {
           _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
         }
       }
+      if (_joy1.getRawAxis(4) < -0.2 || _joy1.getRawAxis(4) > 0.2) {
+        if (pastZDegree == zDegree) {
+          zDegreeIterations++;
+          if (zDegreeIterations > 15) {
+            imuIsWorkingCorrectly = false; // We have a real Problem
+            SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+          }
+        } else {
+          pastZDegree = zDegree;
+          zDegreeIterations = 0;
+        }
+      }
     }
 
     if (_joy1.getRawButton(3) && tenDegrees) {
       imu.reset();
+      imuIsWorkingCorrectly = true;
+      SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     }
 
     // The the Network Table cool Code is within the if Statement
@@ -348,33 +358,25 @@ public class Robot extends TimedRobot {
   // This, before match has begun, should go periodically until we did it.
   private void imuCalibration() {
     if (Timer.getMatchTime() > 0) {
-      
       robotTimer.stop();
       didItAlready = true;
-      
     } else if (robotTimer.get() > 300.0) // if 5+ mins have passed since power on
     {
-      // Do the calibration. This takes 6~ seconds.
-      calibration = true;
-      SmartDashboard.putBoolean("IMU Calibrating", calibration);
-      imu.calibrate();
-      imu.reset();
       didItAlready = true;
-      calibration = false;
-      SmartDashboard.putBoolean("IMU Calibrating", calibration);
+      manualImuCalibration();
       robotTimer.stop();
     }
   }
 
   // Manually calibrate the IMU whenever, disable or change for testing
-  private void manualImuCalibration()
-  {
-      calibration = true;
-      SmartDashboard.putBoolean("IMU Calibrating", calibration);
-      imu.calibrate();
-      imu.reset();
-      calibration = false;
-      SmartDashboard.putBoolean("IMU Calibrating", calibration);
+  private void manualImuCalibration() {
+    imuIsWorkingCorrectly = false;
+    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+    imu.calibrate(); // Do the calibration. This takes 6~ seconds.
+    imu.reset();
+    imuIsWorkingCorrectly = true;
+    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+    zDegreeIterations = 0;
   }
 
   // Attribute a near-gradial speed change
@@ -517,10 +519,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // autoSelected = SmartDashboard.getString("Auto Selector",
-    // defaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
   }
 
   /**
