@@ -1,7 +1,6 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
@@ -188,6 +187,9 @@ public class Robot extends TimedRobot {
         camera = CameraServer.getInstance().startAutomaticCapture(0);
       } catch (Exception e) {
       }
+      if (camera == null) { // Don't ask why!
+        camera = null; // Seriously, don't!
+      }
     }
 
     if (nTables) {
@@ -244,12 +246,6 @@ public class Robot extends TimedRobot {
       imuCalibration();
     }
 
-    // if (tenDegrees) {
-    // // 10 Degrees of Freedom
-    // zDegree = (int) Math.round(imu.getAngleZ());
-    // SmartDashboard.putNumber("zDegree", Math.round(imu.getAngleZ()));
-    // }
-
     // Network Table Test Work
     if (nTables) {
       if (_joy1.getRawButton(2)) {
@@ -260,97 +256,22 @@ public class Robot extends TimedRobot {
       }
     }
 
-    // Setup Stafe values
-    double strafe = 0;
-    if (_joy1.getRawAxis(2) > 0.1) {
-      strafe = _joy1.getRawAxis(2) * -1.0;
-    } else if (_joy1.getRawAxis(3) > 0.1) {
-      strafe = _joy1.getRawAxis(3);
-    }
-    if (mDrive) {
-      if (tenDegrees) {
-        zDegree = Math.round(imu.getAngleZ()) % 360;
-        if (zDegree < 0) {
-          zDegree += 360;
-        }
-        SmartDashboard.putNumber("zDegree", zDegree);
-        targetDegree = find45Degree(zDegree);
-        SmartDashboard.putNumber("targetDegree", targetDegree);
-        lTrack0 = lineTracker0.get();
-        lTrack1 = lineTracker1.get();
-        lTrack2 = lineTracker2.get();
-        lTrack3 = lineTracker3.get();
-        lTrack4 = lineTracker4.get();
-
-        SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
-        SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
-        SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
-        SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
-        SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
-        // strafe = _joy1.getRawAxis(0) * -1;
-        double forwardMotion = _joy1.getRawAxis(1) * -1;
-        if (_joy2.getRawButton(4) || _joy1.getRawButton(4)) { // Line Tracker Enabled
-          rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
-          if (lTrack0) {
-            strafe = strafe + 0.6;
-            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
-          } else if (lTrack4) {
-            strafe = strafe - 0.6;
-            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
-          } else if (lTrack1) {
-            strafe = strafe + 0.4;
-            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
-          } else if (lTrack3) {
-            strafe = strafe - 0.4;
-            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
-          } else if (lTrack2) {
-            if (zDegree > targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, 0.15 * -1, 0);
-            } else if (zDegree < targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
-            }
-          } else {
-            _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
-          }
-        } else {
-          _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
-        }
-      } else {
-        // The the mecanum drive is listed below
-        if (mDrive) {
-          _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
-        }
-      }
-      if (_joy1.getRawAxis(4) < -0.2 || _joy1.getRawAxis(4) > 0.2) {
-        if (pastZDegree == zDegree) {
-          zDegreeIterations++;
-          if (zDegreeIterations > 15) {
-            imuIsWorkingCorrectly = false; // We have a real Problem
-            SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-          }
-        } else {
-          pastZDegree = zDegree;
-          zDegreeIterations = 0;
-        }
-      }
-    }
-
     if (_joy1.getRawButton(3) && tenDegrees) {
       imu.reset();
       imuIsWorkingCorrectly = true;
       SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     }
 
-    // The the Network Table cool Code is within the if Statement
-    if (dDrive) {
-      if (_joy1.getRawButton(1)) {
-        double xDouble = 0;
-        xDouble = xEntry.getDouble(xDouble);
-        double yDouble = 0;
-        yDouble = yEntry.getDouble(yDouble);
-        _dDrive.arcadeDrive(xDouble * -1.0, yDouble);
-      } else {
-        _dDrive.arcadeDrive(_joy1.getRawAxis(1) * -1.0, _joy1.getRawAxis(4));
+    if (mDrive) {
+      if (tenDegrees) {
+        SmartDashboard.putNumber("zDegree", zDegree);
+        SmartDashboard.putNumber("targetDegree", targetDegree);
+        SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+        SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+        SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+        SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+        SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
+        SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
       }
     }
   }
@@ -526,14 +447,93 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousPeriodic() {
-
+    teleopPeriodic();
   }
 
   /**
    * This function is called periodically during operator control.
    */
+
   @Override
   public void teleopPeriodic() {
+    // Setup Stafe values
+    double strafe = 0;
+    if (_joy1.getRawAxis(2) > 0.1) {
+      strafe = _joy1.getRawAxis(2) * -1.0;
+    } else if (_joy1.getRawAxis(3) > 0.1) {
+      strafe = _joy1.getRawAxis(3);
+    }
+    if (mDrive) {
+      if (tenDegrees) {
+        zDegree = Math.round(imu.getAngleZ()) % 360;
+        if (zDegree < 0) {
+          zDegree += 360;
+        }
+        targetDegree = find45Degree(zDegree);
+        lTrack0 = lineTracker0.get();
+        lTrack1 = lineTracker1.get();
+        lTrack2 = lineTracker2.get();
+        lTrack3 = lineTracker3.get();
+        lTrack4 = lineTracker4.get();
+        // strafe = _joy1.getRawAxis(0) * -1;
+        double forwardMotion = _joy1.getRawAxis(1) * -1;
+        if (_joy2.getRawButton(4) || _joy1.getRawButton(4)) { // Line Tracker Enabled
+          rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
+          if (lTrack0) {
+            strafe = strafe + 0.6;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          } else if (lTrack4) {
+            strafe = strafe - 0.6;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          } else if (lTrack1) {
+            strafe = strafe + 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          } else if (lTrack3) {
+            strafe = strafe - 0.4;
+            _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          } else if (lTrack2) {
+            if (zDegree > targetDegree) {
+              _mDrive.driveCartesian(0, forwardMotion, 0.15 * -1, 0);
+            } else if (zDegree < targetDegree) {
+              _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
+            }
+          } else {
+            _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
+          }
+        } else {
+          _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
+        }
+      } else {
+        // The the mecanum drive is listed below
+        if (mDrive) {
+          _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
+        }
+      }
+      if (_joy1.getRawAxis(4) < -0.2 || _joy1.getRawAxis(4) > 0.2) {
+        if (pastZDegree == zDegree) {
+          zDegreeIterations++;
+          if (zDegreeIterations > 15) {
+            imuIsWorkingCorrectly = false; // We have a real Problem
+          }
+        } else {
+          pastZDegree = zDegree;
+          zDegreeIterations = 0;
+        }
+      }
+    }
+
+    // The the Network Table cool Code is within the if Statement
+    if (dDrive) {
+      if (_joy1.getRawButton(1)) {
+        double xDouble = 0;
+        xDouble = xEntry.getDouble(xDouble);
+        double yDouble = 0;
+        yDouble = yEntry.getDouble(yDouble);
+        _dDrive.arcadeDrive(xDouble * -1.0, yDouble);
+      } else {
+        _dDrive.arcadeDrive(_joy1.getRawAxis(1) * -1.0, _joy1.getRawAxis(4));
+      }
+    }
   }
 
   /**
