@@ -4,7 +4,6 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -18,16 +17,8 @@ import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.DigitalInput;
-
 import com.analog.adis16448.frc.ADIS16448_IMU;
 
-/**
- * The VM is configured to automatically run this class, and to call the
- * functions corresponding to each mode, as described in the IterativeRobot
- * documentation. If you change the name of this class or the package after
- * creating this project, you must also update the build.gradle file in the
- * project.
- */
 public class Robot extends TimedRobot {
   WPI_TalonSRX _frontTLeftMotor = null;
   WPI_TalonSRX _frontTRightMotor = null;
@@ -45,9 +36,6 @@ public class Robot extends TimedRobot {
   Joystick _joy2 = null;
   private UsbCamera camera = null;
 
-  // 10 Degrees of Freedom
-  ADIS16448_IMU imu;
-
   // Network Tables
   NetworkTableEntry xEntry;
   NetworkTableEntry yEntry;
@@ -63,6 +51,9 @@ public class Robot extends TimedRobot {
   DigitalInput lineTracker3 = null;
   DigitalInput lineTracker4 = null;
 
+  // 10 Degrees of Freedom
+  ADIS16448_IMU imu;
+
   double zDegree = 0;
   double pastZDegree = zDegree;
   int zDegreeIterations = 0;
@@ -76,6 +67,7 @@ public class Robot extends TimedRobot {
   boolean lTrack2 = false;
   boolean lTrack3 = false;
   boolean lTrack4 = false;
+  boolean autoTrackingEnabled = true;
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
@@ -85,6 +77,7 @@ public class Robot extends TimedRobot {
   boolean jCam = false; // Jevois Camera
   boolean lTrack = true; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
+  // CAUSE OF THE CRCS
 
   String jCamString = " ";
 
@@ -272,8 +265,16 @@ public class Robot extends TimedRobot {
         SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
         SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
         SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+        SmartDashboard.putBoolean("Auto Tracking", autoTrackingEnabled);
       }
     }
+
+    if (_joy2.getRawButton(4) || _joy1.getRawButton(4))
+      if (autoTrackingEnabled) {
+        autoTrackingEnabled = false;
+      } else {
+        autoTrackingEnabled = true;
+      }
   }
 
   // This, before match has begun, should go periodically until we did it.
@@ -293,8 +294,11 @@ public class Robot extends TimedRobot {
   private void manualImuCalibration() {
     imuIsWorkingCorrectly = false;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-    imu.calibrate(); // Do the calibration. This takes 6~ seconds.
-    imu.reset();
+    try {
+      imu.calibrate();
+      imu.reset();
+    } catch (Exception e) {
+    }
     imuIsWorkingCorrectly = true;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     zDegreeIterations = 0;
@@ -424,41 +428,22 @@ public class Robot extends TimedRobot {
     return retDoub;
   }
 
-  // Phil Note - Shift Alt F
-
-  /**
-   * This autonomous (along with the chooser code above) shows how to select
-   * between different autonomous modes using the dashboard. The sendable chooser
-   * code works with the Java SmartDashboard. If you prefer the LabVIEW Dashboard,
-   * remove all of the chooser code and uncomment the getString line to get the
-   * auto name from the text box below the Gyro
-   *
-   * <p>
-   * You can add additional auto modes by adding additional comparisons to the
-   * switch structure below with additional strings. If using the SendableChooser
-   * make sure to add them to the chooser code above as well.
-   */
   @Override
   public void autonomousInit() {
   }
 
-  /**
-   * This function is called periodically during autonomous.
-   */
   @Override
   public void autonomousPeriodic() {
     teleopPeriodic();
   }
 
-  /**
-   * This function is called periodically during operator control.
-   */
-
   @Override
   public void teleopPeriodic() {
     // Setup Stafe values
     double strafe = 0;
-    if (_joy1.getRawAxis(2) > 0.1) {
+    if (_joy1.getRawAxis(0) > 0.1 || _joy1.getRawAxis(0) < -0.1) {
+      strafe = _joy1.getRawAxis(0);
+    } else if (_joy1.getRawAxis(2) > 0.1) {
       strafe = _joy1.getRawAxis(2) * -1.0;
     } else if (_joy1.getRawAxis(3) > 0.1) {
       strafe = _joy1.getRawAxis(3);
@@ -475,10 +460,10 @@ public class Robot extends TimedRobot {
         lTrack2 = lineTracker2.get();
         lTrack3 = lineTracker3.get();
         lTrack4 = lineTracker4.get();
-        // strafe = _joy1.getRawAxis(0) * -1;
         double forwardMotion = _joy1.getRawAxis(1) * -1;
-        if (_joy2.getRawButton(4) || _joy1.getRawButton(4)) { // Line Tracker Enabled
+        if (autoTrackingEnabled) { // Line Tracker Enabled
           rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
+          rotation = rotation + _joy1.getRawAxis(4);
           if (lTrack0) {
             strafe = strafe + 0.6;
             _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
