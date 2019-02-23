@@ -77,7 +77,6 @@ public class Robot extends TimedRobot {
   boolean jCam = false; // Jevois Camera
   boolean lTrack = true; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
-  // CAUSE OF THE CRCS
 
   String jCamString = " ";
 
@@ -168,8 +167,8 @@ public class Robot extends TimedRobot {
         imu = new ADIS16448_IMU();
       }
       try {
-        imu.calibrate();
         imu.reset();
+        imu.calibrate();
       } catch (Exception e) {
 
       }
@@ -211,18 +210,8 @@ public class Robot extends TimedRobot {
     }
 
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-
   }
 
-  /**
-   * This function is called every robot packet, no matter the mode. Use this for
-   * items like diagnostics that you want ran during disabled, autonomous,
-   * teleoperated and test.
-   *
-   * <p>
-   * This runs after the mode specific periodic functions, but before LiveWindow
-   * and SmartDashboard integrated updating.
-   */
   @Override
   public void robotPeriodic() {
     // To calibrate imu manually, press start on both controllers. Only usable
@@ -295,54 +284,13 @@ public class Robot extends TimedRobot {
     imuIsWorkingCorrectly = false;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     try {
-      imu.calibrate();
       imu.reset();
+      imu.calibrate();
     } catch (Exception e) {
     }
     imuIsWorkingCorrectly = true;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     zDegreeIterations = 0;
-  }
-
-  // Attribute a near-gradial speed change
-  public double gradientSpeed(double fullspeed, double originalLocation, double desiredLocation,
-      double currentLocation) {
-    double halfSpeed = fullspeed / 2;
-    if (halfSpeed < .1) {
-      halfSpeed = 0.1;
-    }
-    double slowSpeed = (fullspeed / 4 * 3);
-    if (slowSpeed < .1) {
-      slowSpeed = 0.1;
-    }
-    double returnSpeed = fullspeed;
-    if (origLine2Degree == -0.0001) {
-      origLine2Degree = currentLocation;
-    }
-    if (desiredLocation >= originalLocation) {
-      if (currentLocation > (desiredLocation - originalLocation) / 2) {
-        returnSpeed = halfSpeed;
-      }
-      if (currentLocation > ((desiredLocation - originalLocation) / 4) * 3) {
-        returnSpeed = slowSpeed;
-      }
-    } else {
-      if (currentLocation < (originalLocation - desiredLocation) / 2) {
-        returnSpeed = halfSpeed;
-      }
-      if (currentLocation < ((originalLocation - desiredLocation) / 4) * 3) {
-        returnSpeed = slowSpeed;
-      }
-    }
-
-    // At this moment, when you're wanting to go to 0, we must tell you:
-    if (targetDegree == 0 && zDegree > 270) {
-      returnSpeed = returnSpeed * -1.0; // negative * negative
-    }
-    if (zDegree > targetDegree) {
-      returnSpeed = returnSpeed * -1.0;
-    }
-    return returnSpeed;
   }
 
   public double find45Degree(double zDegree) {
@@ -462,26 +410,26 @@ public class Robot extends TimedRobot {
         lTrack4 = lineTracker4.get();
         double forwardMotion = _joy1.getRawAxis(1) * -1;
         if (autoTrackingEnabled) { // Line Tracker Enabled
-          rotation = gradientSpeed(0.3, origLine2Degree, targetDegree, zDegree);
-          rotation = rotation + _joy1.getRawAxis(4);
+          rotation = _joy1.getRawAxis(4);
           if (lTrack0) {
+            rotation = rotation + turnSpeed(0.3);
             strafe = strafe + 0.6;
             _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack4) {
+            rotation = rotation + turnSpeed(0.3);
             strafe = strafe - 0.6;
             _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack1) {
+            rotation = rotation + turnSpeed(0.2);
             strafe = strafe + 0.4;
             _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack3) {
+            rotation = rotation + turnSpeed(0.2);
             strafe = strafe - 0.4;
             _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
           } else if (lTrack2) {
-            if (zDegree > targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, 0.15 * -1, 0);
-            } else if (zDegree < targetDegree) {
-              _mDrive.driveCartesian(0, forwardMotion, 0.15, 0);
-            }
+            rotation = rotation + turnSpeed(0.1);
+            _mDrive.driveCartesian(0, forwardMotion, rotation, 0);
           } else {
             _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
           }
@@ -519,6 +467,17 @@ public class Robot extends TimedRobot {
         _dDrive.arcadeDrive(_joy1.getRawAxis(1) * -1.0, _joy1.getRawAxis(4));
       }
     }
+  }
+
+  public double turnSpeed(double fullspeed) {
+    double returnSpeed = fullspeed;
+    if (targetDegree == 0 && zDegree > 270) {
+      returnSpeed = returnSpeed * -1.0; // we are overlapping zero
+    }
+    if (zDegree > targetDegree) {
+      returnSpeed = returnSpeed * -1.0;
+    }
+    return returnSpeed;
   }
 
   /**
