@@ -6,7 +6,7 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.cscore.UsbCamera;
@@ -22,17 +22,20 @@ import edu.wpi.first.wpilibj.DoubleSolenoid;
 import com.analog.adis16448.frc.ADIS16448_IMU;
 
 public class Robot extends TimedRobot {
-  WPI_TalonSRX _frontTLeftMotor = null;
-  WPI_TalonSRX _frontTRightMotor = null;
-  WPI_TalonSRX _rearTRightMotor = null;
-  WPI_TalonSRX _rearTLeftMotor = null;
-  WPI_VictorSPX _frontVLeftMotor = null;
-  WPI_VictorSPX _frontVRightMotor = null;
-  WPI_VictorSPX _rearVRightMotor = null;
-  WPI_VictorSPX _rearVLeftMotor = null;
-  SpeedControllerGroup leftMotors = null;
-  SpeedControllerGroup rightMotors = null;
-  DifferentialDrive _dDrive = null;
+  // Victors
+  WPI_VictorSPX _frontTLeftMotor = null;
+  WPI_VictorSPX _frontTRightMotor = null;
+  WPI_VictorSPX _rearTRightMotor = null;
+  WPI_VictorSPX _rearTLeftMotor = null;
+  WPI_VictorSPX _intakeUpperMotor = null;
+  WPI_VictorSPX _intakeLowerMotor = null;
+
+  // Talons
+  WPI_TalonSRX _frontLifterOne = null;
+  WPI_TalonSRX _frontLifterTwo = null;
+  WPI_TalonSRX _rearLifterMotor = null;
+  WPI_TalonSRX _intakeLifterMotor = null;
+  SpeedControllerGroup frontLifterMotors = null;
   MecanumDrive _mDrive = null;
   Joystick _joy1 = null;
   Joystick _joy2 = null;
@@ -69,16 +72,15 @@ public class Robot extends TimedRobot {
   boolean lTrack2 = false;
   boolean lTrack3 = false;
   boolean lTrack4 = false;
-  boolean autoTrackingEnabled = true;
+  boolean autoTrackingEnabled = false;
 
   // Sections of code to include or exclude
-  boolean nTables = false; // Network Tables in Use
-  boolean mDrive = true; // Mecanum Drive
-  boolean dDrive = false; // Differential Drive
-  boolean cServer = true; // Camera Server
-  boolean jCam = false; // Jevois Camera
-  boolean lTrack = true; // Line Tracker
-  boolean tenDegrees = true; // 10 degrees of freedom
+  boolean nTables    = false; // Network Tables in Use
+  boolean mDrive     = true; // Mecanum Drive
+  boolean cServer    = false; // Camera Server
+  boolean jCam       = false; // Jevois Camera
+  boolean lTrack     = false; // Line Tracker
+  boolean tenDegrees = false; // 10 degrees of freedom
   boolean pneumatics = false; // Pneumatics System
 // yeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeees
   String jCamString = " ";
@@ -114,22 +116,29 @@ public class Robot extends TimedRobot {
 
     // Setup the Drive System
     if (mDrive) {
-      _frontTLeftMotor = new WPI_TalonSRX(13);
-      _frontTRightMotor = new WPI_TalonSRX(12);
-      _rearTRightMotor = new WPI_TalonSRX(11);
-      _rearTLeftMotor = new WPI_TalonSRX(10);
+      _frontTLeftMotor = new WPI_VictorSPX(13);
+      _frontTRightMotor = new WPI_VictorSPX(12);
+      _rearTRightMotor = new WPI_VictorSPX(11);
+      _rearTLeftMotor = new WPI_VictorSPX(10);
+
+      // Invert all the motors, they're probably wired wrong
+      _frontTLeftMotor.setInverted(true);
+      _frontTRightMotor.setInverted(true);
+      _rearTLeftMotor.setInverted(true);
+      _rearTRightMotor.setInverted(true);
 
       _mDrive = new MecanumDrive(_frontTLeftMotor, _rearTLeftMotor, _frontTRightMotor, _rearTRightMotor);
-    } else if (dDrive) {
-      _frontVLeftMotor = new WPI_VictorSPX(13);
-      _frontVRightMotor = new WPI_VictorSPX(12);
-      _rearVRightMotor = new WPI_VictorSPX(11);
-      _rearVLeftMotor = new WPI_VictorSPX(10);
+    } 
+    //lifter 
+    _frontLifterOne = new WPI_TalonSRX(23);
+    _frontLifterTwo = new WPI_TalonSRX(22);
+    frontLifterMotors = new SpeedControllerGroup(_frontLifterOne, _frontLifterTwo); 
 
-      leftMotors = new SpeedControllerGroup(_frontTLeftMotor, _rearTLeftMotor);
-      rightMotors = new SpeedControllerGroup(_frontTRightMotor, _rearTRightMotor);
-      _dDrive = new DifferentialDrive(leftMotors, rightMotors);
-    }
+    _rearLifterMotor = new WPI_TalonSRX(20);
+    _intakeLifterMotor = new WPI_TalonSRX(21);
+
+    _intakeLowerMotor = new WPI_VictorSPX(31);
+    _intakeUpperMotor = new WPI_VictorSPX(30);
 
     if (lTrack) {
       try {
@@ -238,16 +247,6 @@ public class Robot extends TimedRobot {
     }
     if (!didItAlready) {
       imuCalibration();
-    }
-
-    // Network Table Test Work
-    if (nTables) {
-      if (_joy1.getRawButton(2)) {
-        double xDouble = Math.random();
-        double yDouble = Math.random();
-        xEntry.setDouble(xDouble);
-        yEntry.setDouble(yDouble);
-      }
     }
 
     if (_joy1.getRawButton(3) && tenDegrees) {
@@ -450,9 +449,7 @@ public class Robot extends TimedRobot {
         }
       } else {
         // The the mecanum drive is listed below
-        if (mDrive) {
-          _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
-        }
+        _mDrive.driveCartesian(strafe, _joy1.getRawAxis(1) * -1, _joy1.getRawAxis(4), 0);
       }
       if (_joy1.getRawAxis(4) < -0.2 || _joy1.getRawAxis(4) > 0.2) {
         if (pastZDegree == zDegree) {
@@ -464,28 +461,26 @@ public class Robot extends TimedRobot {
           pastZDegree = zDegree;
           zDegreeIterations = 0;
         }
-        if (pneumatics) {
-          if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
-            pneuAction.set(DoubleSolenoid.Value.kReverse);
-          } else {
-            pneuAction.set(DoubleSolenoid.Value.kForward);
-          }
+        // if (pneumatics) {
+        //   if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
+        //     pneuAction.set(DoubleSolenoid.Value.kReverse);
+        //   } else {
+        //     pneuAction.set(DoubleSolenoid.Value.kForward);
+        //   }
+        // }
+
+        if (_joy1.getRawButton(6))
+        {
+          frontLifterMotors.set(0.2);
+        }
+        if (_joy1.getRawButton(5))
+        {
+          frontLifterMotors.set(-0.2);
         }
       }
     }
 
-    // The the Network Table cool Code is within the if Statement
-    if (dDrive) {
-      if (_joy1.getRawButton(1)) {
-        double xDouble = 0;
-        xDouble = xEntry.getDouble(xDouble);
-        double yDouble = 0;
-        yDouble = yEntry.getDouble(yDouble);
-        _dDrive.arcadeDrive(xDouble * -1.0, yDouble);
-      } else {
-        _dDrive.arcadeDrive(_joy1.getRawAxis(1) * -1.0, _joy1.getRawAxis(4));
-      }
-    }
+
   }
 
   public double turnSpeed(double fullspeed) {
