@@ -60,6 +60,8 @@ public class Robot extends TimedRobot {
   ADIS16448_IMU imu;
 
   double zDegree = 0;
+  double xDegree = 0;
+  double yDegree = 0;
   double pastZDegree = zDegree;
   int zDegreeIterations = 0;
   double targetDegree = 0;
@@ -75,14 +77,14 @@ public class Robot extends TimedRobot {
   boolean autoTrackingEnabled = false;
 
   // Sections of code to include or exclude
-  boolean nTables    = false; // Network Tables in Use
-  boolean mDrive     = true; // Mecanum Drive
-  boolean cServer    = false; // Camera Server
-  boolean jCam       = false; // Jevois Camera
-  boolean lTrack     = false; // Line Tracker
-  boolean tenDegrees = false; // 10 degrees of freedom
+  boolean nTables = false; // Network Tables in Use
+  boolean mDrive = true; // Mecanum Drive
+  boolean cServer = false; // Camera Server
+  boolean jCam = false; // Jevois Camera
+  boolean lTrack = false; // Line Tracker
+  boolean tenDegrees = true; // 10 degrees of freedom
   boolean pneumatics = false; // Pneumatics System
-// yeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeees
+  // yeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeees
   String jCamString = " ";
 
   // Timer
@@ -128,11 +130,11 @@ public class Robot extends TimedRobot {
       _rearTRightMotor.setInverted(true);
 
       _mDrive = new MecanumDrive(_frontTLeftMotor, _rearTLeftMotor, _frontTRightMotor, _rearTRightMotor);
-    } 
-    //lifter 
+    }
+    // lifter
     _frontLifterOne = new WPI_TalonSRX(23);
     _frontLifterTwo = new WPI_TalonSRX(22);
-    frontLifterMotors = new SpeedControllerGroup(_frontLifterOne, _frontLifterTwo); 
+    frontLifterMotors = new SpeedControllerGroup(_frontLifterOne, _frontLifterTwo);
 
     _rearLifterMotor = new WPI_TalonSRX(20);
     _intakeLifterMotor = new WPI_TalonSRX(21);
@@ -258,6 +260,8 @@ public class Robot extends TimedRobot {
     if (mDrive) {
       if (tenDegrees) {
         SmartDashboard.putNumber("zDegree", zDegree);
+        SmartDashboard.putNumber("xDegree", xDegree);
+        SmartDashboard.putNumber("yDegree", yDegree);
         SmartDashboard.putNumber("targetDegree", targetDegree);
         SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
         SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
@@ -410,6 +414,8 @@ public class Robot extends TimedRobot {
     if (mDrive) {
       if (tenDegrees) {
         zDegree = Math.round(imu.getAngleZ()) % 360;
+        xDegree = Math.round(imu.getAngleX()) % 360;
+        yDegree = Math.round(imu.getAngleY()) % 360;
         if (zDegree < 0) {
           zDegree += 360;
         }
@@ -462,24 +468,26 @@ public class Robot extends TimedRobot {
           zDegreeIterations = 0;
         }
         // if (pneumatics) {
-        //   if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
-        //     pneuAction.set(DoubleSolenoid.Value.kReverse);
-        //   } else {
-        //     pneuAction.set(DoubleSolenoid.Value.kForward);
-        //   }
+        // if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
+        // pneuAction.set(DoubleSolenoid.Value.kReverse);
+        // } else {
+        // pneuAction.set(DoubleSolenoid.Value.kForward);
+        // }
         // }
 
-        if (_joy1.getRawButton(6))
-        {
-          frontLifterMotors.set(0.2);
-        }
-        if (_joy1.getRawButton(5))
-        {
-          frontLifterMotors.set(-0.2);
-        }
       }
     }
 
+    if (_joy1.getRawButton(6)) {
+      //frontLifterMotors.set(0.5);
+      _rearLifterMotor.set(0.3);
+    } else if (_joy1.getRawButton(5)) {
+      //frontLifterMotors.set(-0.5);
+      _rearLifterMotor.set(-0.3);
+    } else {
+      //frontLifterMotors.set(0.0);
+      _rearLifterMotor.set(0.0);
+    }
 
   }
 
