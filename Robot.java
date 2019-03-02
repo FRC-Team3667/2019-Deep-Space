@@ -99,6 +99,7 @@ public class Robot extends TimedRobot {
 
   // Pneumatics
   DoubleSolenoid pneuAction;
+  boolean pneuEnabled = false;
 
   @Override
   public void robotInit() {
@@ -227,9 +228,9 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotPeriodic() {
-    // Perform a full IMU reset and calibration when both "Start" pressed
+    // Perform a full IMU reset and calibration joy2 "Start" pressed
     // This might take up to 9 seconds
-    if (_joy1.getRawButton(8) && _joy2.getRawButton(8)) {
+    if (_joy1.getRawButton(8)) {
       manualImuCalibration();
     }
     if (!didItAlready) {
@@ -237,12 +238,13 @@ public class Robot extends TimedRobot {
     }
 
     // Reset the imu when the "Y" yellow button is pressed
-    if (_joy1.getRawButton(3) && tenDegrees) {
+    if (_joy2.getRawButton(3) && tenDegrees) {
       imu.reset();
       imuIsWorkingCorrectly = true;
       SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     }
 
+    // Show the needed data to the Smart Dashboard
     if (tenDegrees) {
       SmartDashboard.putNumber("zDegree", zDegree);
       SmartDashboard.putNumber("xDegree", xDegree);
@@ -257,18 +259,38 @@ public class Robot extends TimedRobot {
       SmartDashboard.putBoolean("Auto Tracking", autoTrackingEnabled);
       SmartDashboard.putNumber("frontspeed", frontLiftSpeed);
       SmartDashboard.putNumber("rearspeed", rearLiftSpeed);
+      SmartDashboard.putBoolean("pneu Enabled", pneuEnabled);
     }
+
     // Turn autoTracking on/off
-    if (_joy2.getRawButton(4) || _joy1.getRawButton(4)) {
+    if (_joy2.getRawButton(4)) {
       if (autoTrackingEnabled) {
         autoTrackingEnabled = false;
       } else {
         autoTrackingEnabled = true;
       }
     }
+
+    // Turn Compresser on/off
+    if (pneumatics) {
+      if (_joy2.getRawButton(7)) {
+        if (pneuEnabled) {
+          pneuEnabled = false;
+        } else {
+          pneuEnabled = true;
+        }
+      }
+      if (pneuEnabled) {
+        // if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
+        // pneuAction.set(DoubleSolenoid.Value.kReverse);
+        // } else {
+        // pneuAction.set(DoubleSolenoid.Value.kForward);
+        // }
+      }
+    }
   }
 
-  // This, before match has begun, should go periodically until we did it.
+  // This, before match has begun, should go periodically until done once
   private void imuCalibration() {
     if (Timer.getMatchTime() > 0) {
       robotTimer.stop();
@@ -281,7 +303,7 @@ public class Robot extends TimedRobot {
     }
   }
 
-  // Manually calibrate the IMU whenever, disable or change for testing
+  // Manually calibrate the IMU - Robot should be oriented away from Driver
   private void manualImuCalibration() {
     imuIsWorkingCorrectly = false;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
@@ -295,14 +317,12 @@ public class Robot extends TimedRobot {
     zDegreeIterations = 0;
   }
 
+  // Locate the nearest target angle for our line tracker
   public double find45Degree(double zDegree) {
     double retDoub = -1;
-    int povVal1 = _joy1.getPOV();
-    int povVal2 = _joy2.getPOV();
+    int povVal2 = _joy2.getPOV(); // If driver indicate override use it
     if (povVal2 >= 0) {
       retDoub = povVal2;
-    } else if (povVal1 >= 0) {
-      retDoub = povVal1;
     } else {
       int plusOne = (int) zDegree;
       int minusOne = (int) zDegree;
@@ -408,7 +428,7 @@ public class Robot extends TimedRobot {
       frontLiftSpeed = maxFrontLiftSpeed; // Enforce max speed limits
     }
     // This is our platform climb at the end
-    if (_joy1.getRawButton(2)) {
+    if (_joy1.getRawButton(4)) {
       frontLifterMotors.set(frontLiftSpeed);
       _rearLifterMotor.set(rearLiftSpeed * -1.0);
       if (forwardMotion < 0.5 && forwardMotion > -0.5) {
@@ -426,6 +446,7 @@ public class Robot extends TimedRobot {
     } else if (Math.abs(_joy1.getRawAxis(2)) > .2) {
       frontLifterMotors.set(0.0);
       _rearLifterMotor.set(0.3);
+      forwardMotion = 0.2;
     } else if (Math.abs(_joy1.getRawAxis(3)) > .2) {
       frontLifterMotors.set(0.0);
       _rearLifterMotor.set(-0.3);
@@ -442,14 +463,15 @@ public class Robot extends TimedRobot {
       _intakeLifterMotor.set(0);
     }
 
+    // Intake logic to receive and give a ball
     double ballInTakeIn = _joy2.getRawAxis(2);
     double ballInTakeOut = _joy2.getRawAxis(3);
-    if(ballInTakeIn > 0.05 || ballInTakeIn < -0.05) {
+    if (ballInTakeIn > 0.05 || ballInTakeIn < -0.05) {
       _intakeLowerMotor.set(ballInTakeIn);
-      _intakeUpperMotor.set(-ballInTakeIn);
-    } else if(ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
+      _intakeUpperMotor.set(ballInTakeIn);
+    } else if (ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
       _intakeLowerMotor.set(-ballInTakeOut);
-      _intakeUpperMotor.set(ballInTakeOut);
+      _intakeUpperMotor.set(-ballInTakeOut);
     } else {
       _intakeLowerMotor.set(0);
       _intakeUpperMotor.set(0);
@@ -457,12 +479,12 @@ public class Robot extends TimedRobot {
 
     // Setup Stafe values
     double strafe = 0;
-    if (_joy1.getRawAxis(0) > 0.1 || _joy1.getRawAxis(0) < -0.1) {
-      strafe = _joy1.getRawAxis(0);
-    } else if (_joy1.getRawAxis(2) > 0.1) {
-      strafe = _joy1.getRawAxis(2) * -1.0;
-    } else if (_joy1.getRawAxis(3) > 0.1) {
-      strafe = _joy1.getRawAxis(3);
+    if (_joy1.getRawAxis(0) > 0.05 || _joy1.getRawAxis(0) < -0.05) {
+      strafe = _joy1.getRawAxis(0) * 1.25;
+      if (strafe > 1.0)
+      {
+        strafe = 1.0;
+      }
     }
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
@@ -520,13 +542,6 @@ public class Robot extends TimedRobot {
         pastZDegree = zDegree;
         zDegreeIterations = 0;
       }
-      // if (pneumatics) {
-      // if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
-      // pneuAction.set(DoubleSolenoid.Value.kReverse);
-      // } else {
-      // pneuAction.set(DoubleSolenoid.Value.kForward);
-      // }
-      // }
     }
   }
 
