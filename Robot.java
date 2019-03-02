@@ -18,6 +18,7 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.SerialPort.Port;
+import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 
@@ -92,13 +93,16 @@ public class Robot extends TimedRobot {
   boolean jCam = false; // Jevois Camera
   boolean lTrack = false; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
-  boolean pneumatics = false; // Pneumatics System
+  boolean pneumatics = true; // Pneumatics System
 
   // Timer
   Timer robotTimer = new Timer();
 
   // Pneumatics
-  DoubleSolenoid pneuAction;
+  Compressor scottCompressor;
+  DoubleSolenoid pneuVacuum;
+  DoubleSolenoid pneuHatchPanelTop;
+  DoubleSolenoid pneuHatchPanelBottom;
   boolean pneuEnabled = false;
 
   @Override
@@ -222,7 +226,14 @@ public class Robot extends TimedRobot {
 
     // Create our Pneumatics controls
     if (pneumatics) {
-      pneuAction = new DoubleSolenoid(8, 9);
+      scottCompressor = new Compressor(0);
+      scottCompressor.setClosedLoopControl(true);
+      pneuVacuum = new DoubleSolenoid(4, 5);
+      pneuVacuum.set(DoubleSolenoid.Value.kOff);
+      pneuHatchPanelTop = new DoubleSolenoid(2, 3);
+      pneuHatchPanelBottom = new DoubleSolenoid(0, 1);
+      pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
+      pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
     }
   }
 
@@ -273,19 +284,17 @@ public class Robot extends TimedRobot {
 
     // Turn Compresser on/off
     if (pneumatics) {
-      if (_joy2.getRawButton(7)) {
-        if (pneuEnabled) {
-          pneuEnabled = false;
-        } else {
-          pneuEnabled = true;
-        }
+      if (_joy2.getRawButton(1)) {
+        pneuVacuum.set(DoubleSolenoid.Value.kForward);
+      } else {
+        pneuVacuum.set(DoubleSolenoid.Value.kReverse);
       }
-      if (pneuEnabled) {
-        // if (_joy1.getRawButton(5) || _joy2.getRawButton(5)) {
-        // pneuAction.set(DoubleSolenoid.Value.kReverse);
-        // } else {
-        // pneuAction.set(DoubleSolenoid.Value.kForward);
-        // }
+      if (_joy2.getRawButton(2)) {
+        pneuHatchPanelTop.set(DoubleSolenoid.Value.kForward);
+        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kForward);
+      } else {
+        pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
+        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
       }
     }
   }
@@ -470,8 +479,14 @@ public class Robot extends TimedRobot {
       _intakeLowerMotor.set(ballInTakeIn);
       _intakeUpperMotor.set(ballInTakeIn);
     } else if (ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
-      _intakeLowerMotor.set(-ballInTakeOut);
-      _intakeUpperMotor.set(-ballInTakeOut);
+      _intakeLowerMotor.set(-ballInTakeOut / 2);
+      _intakeUpperMotor.set(-ballInTakeOut / 2);
+    } else if (_joy2.getRawButton(5)) {
+      _intakeLowerMotor.set(1.0);
+      _intakeUpperMotor.set(1.0);
+    } else if (_joy2.getRawButton(6)) {
+      _intakeLowerMotor.set(-0.5);
+      _intakeUpperMotor.set(-0.5);
     } else {
       _intakeLowerMotor.set(0);
       _intakeUpperMotor.set(0);
@@ -481,8 +496,7 @@ public class Robot extends TimedRobot {
     double strafe = 0;
     if (_joy1.getRawAxis(0) > 0.05 || _joy1.getRawAxis(0) < -0.05) {
       strafe = _joy1.getRawAxis(0) * 1.25;
-      if (strafe > 1.0)
-      {
+      if (strafe > 1.0) {
         strafe = 1.0;
       }
     }
