@@ -78,7 +78,7 @@ public class Robot extends TimedRobot {
   int zDegreeIterations = 0;
   double targetDegree = 0;
   double rotationCounter = 1;
-  double rotation = 0;
+  double turnRotation = 0;
   double forwardMotion = 0;
   boolean lTrack0 = false;
   boolean lTrack1 = false;
@@ -94,6 +94,7 @@ public class Robot extends TimedRobot {
   boolean lTrack = false; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
   boolean pneumatics = true; // Pneumatics System
+  boolean limitSwitches = true; // limit switches
 
   // Timer
   Timer robotTimer = new Timer();
@@ -104,9 +105,17 @@ public class Robot extends TimedRobot {
   DoubleSolenoid pneuHatchPanelTop;
   DoubleSolenoid pneuHatchPanelBottom;
   boolean pneuEnabled = false;
-  Boolean pneuVaccumeIsOn = false;
+  boolean pneuVaccumeIsOn = false;
   double vaccumeEndTime = 0;
-  
+
+  // climbing vars
+  double stopClimbTime = 0;
+  double startClimbDegree = 0;
+  boolean climbInitialize = true;
+
+  // Limit switches
+  DigitalInput limitSwitchIntakeLift;
+  DigitalInput limitSwitchRearLift;
 
   @Override
   public void robotInit() {
@@ -138,15 +147,11 @@ public class Robot extends TimedRobot {
     // Create front Lifter motors
     _frontLifterOne = new WPI_TalonSRX(23);
     _frontLifterTwo = new WPI_TalonSRX(22);
-    // We would like these to brake when set to zero speed
-    _frontLifterOne.setNeutralMode(NeutralMode.Brake);
-    _frontLifterTwo.setNeutralMode(NeutralMode.Brake);
+
     frontLifterMotors = new SpeedControllerGroup(_frontLifterOne, _frontLifterTwo);
 
     // Create rear Lifter Motors
     _rearLifterMotor = new WPI_TalonSRX(20);
-    // We want this moter to break when set to zero speed
-    _rearLifterMotor.setNeutralMode(NeutralMode.Brake);
 
     // Create the Intake Motors
     _intakeLifterMotor = new WPI_TalonSRX(21);
@@ -238,6 +243,13 @@ public class Robot extends TimedRobot {
       pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
       pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
     }
+
+    if (limitSwitches) {
+      // limitSwitchIntakeLift = new DigitalInput(1);
+      limitSwitchRearLift = new DigitalInput(0);
+    }
+
+    climbInitialize = true;
   }
 
   @Override
@@ -258,6 +270,10 @@ public class Robot extends TimedRobot {
       SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
     }
 
+    // limit switch display
+    if (limitSwitches) {
+      SmartDashboard.putBoolean("Rear Limit", limitSwitchRearLift.get());
+    }
     // Show the needed data to the Smart Dashboard
     if (tenDegrees) {
       SmartDashboard.putNumber("zDegree", zDegree);
@@ -284,7 +300,6 @@ public class Robot extends TimedRobot {
         autoTrackingEnabled = true;
       }
     }
-
     // Turn Compresser on/off
     if (pneumatics) {
       if (_joy2.getRawButton(2)) {
@@ -292,13 +307,13 @@ public class Robot extends TimedRobot {
         pneuVacuum.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
         pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
-      } else if(pneuVaccumeIsOn){
+      } else if (pneuVaccumeIsOn) {
         pneuHatchPanelTop.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelBottom.set(DoubleSolenoid.Value.kForward);
         vaccumeEndTime = System.currentTimeMillis() + 4000;
         pneuVaccumeIsOn = false;
       } else {
-        if(vaccumeEndTime == 0 || vaccumeEndTime <= System.currentTimeMillis()){
+        if (vaccumeEndTime == 0 || vaccumeEndTime <= System.currentTimeMillis()) {
           pneuVacuum.set(DoubleSolenoid.Value.kReverse);
         }
       }
@@ -433,47 +448,70 @@ public class Robot extends TimedRobot {
     forwardMotion = _joy1.getRawAxis(1) * -1;
 
     // Platform Climb Logic
-    rearLiftSpeed = frontLiftSpeed * 0.7;
-    yDegree = Math.round(imu.getAngleY()) % 360;
-    if (yDegree > 5 && yDegree < 180) {
-      rearLiftSpeed = rearLiftSpeed + 0.4; // Increase Speed to rear if front is too fast
-    } else if (yDegree < -5.0) {
-      rearLiftSpeed = 0.0; // Turn off rear if front is too slow
-    } else if (yDegree < 0) {
-      rearLiftSpeed = rearLiftSpeed - 0.25; // Decrease speed to rear if front is lagging slightly
-    }
-    if (rearLiftSpeed > maxRearLiftSpeed) {
-      rearLiftSpeed = maxRearLiftSpeed; // Enforce max speed limits
-    }
-    if (frontLiftSpeed > maxFrontLiftSpeed) {
-      frontLiftSpeed = maxFrontLiftSpeed; // Enforce max speed limits
-    }
     // This is our platform climb at the end
-    if (_joy1.getRawButton(4)) {
+    if (_joy1.getRawButton(4)) { // Automated Climb
+      // store starting climb angle and time
+      if (climbInitialize) {
+        startClimbDegree = Math.round(imu.getAngleY()) % 360;
+        climbInitialize = false;
+      }
+      // get climb speeds
+      rearLiftSpeed = frontLiftSpeed * 0.7;
+      yDegree = Math.round(imu.getAngleY()) % 360;
+      if (yDegree > startClimbDegree + 5 && yDegree < startClimbDegree + 180) {
+        rearLiftSpeed = rearLiftSpeed + 0.4; // Increase Speed to rear if front is too fast
+      } else if (yDegree < startClimbDegree - 5.0) {
+        rearLiftSpeed = 0.0; // Turn off rear if front is too slow
+      } else if (yDegree < startClimbDegree) {
+        rearLiftSpeed = rearLiftSpeed - 0.25; // Decrease speed to rear if front is lagging slightly
+      }
+      if (rearLiftSpeed > maxRearLiftSpeed) {
+        rearLiftSpeed = maxRearLiftSpeed; // Enforce max speed limits
+      }
+      if (frontLiftSpeed > maxFrontLiftSpeed) {
+        frontLiftSpeed = maxFrontLiftSpeed; // Enforce max speed limits
+      }
+      // perform climb
       frontLifterMotors.set(frontLiftSpeed);
       _rearLifterMotor.set(rearLiftSpeed * -1.0);
       if (forwardMotion < 0.5 && forwardMotion > -0.5) {
         forwardMotion = 0.2; // This should cause a slow forward wheel spin while climbing
       }
-    } else if (_joy1.getRawButton(1)) {
+    } else if (_joy1.getRawButton(1)) { // Revers both Claw and Pogo
       frontLifterMotors.set(frontLiftSpeed * -1.0);
       _rearLifterMotor.set(rearLiftSpeed);
-    } else if (_joy1.getRawButton(6)) {
-      frontLifterMotors.set(0.4);
-      _rearLifterMotor.set(0.0);
-    } else if (_joy1.getRawButton(5)) {
-      frontLifterMotors.set(-0.4);
-      _rearLifterMotor.set(0.0);
-    } else if (Math.abs(_joy1.getRawAxis(2)) > .2) {
-      frontLifterMotors.set(0.0);
-      _rearLifterMotor.set(0.3);
-      forwardMotion = 0.2;
-    } else if (Math.abs(_joy1.getRawAxis(3)) > .2) {
-      frontLifterMotors.set(0.0);
-      _rearLifterMotor.set(-0.3);
     } else {
-      frontLifterMotors.set(0.0);
-      _rearLifterMotor.set(0.0);
+      if (Math.abs(_joy1.getRawAxis(3)) > 0.1) {
+        // deploy front lifter
+        frontLifterMotors.set(_joy1.getRawAxis(3));
+        _rearLifterMotor.set(0.0);
+      } else if (_joy1.getRawButton(6)) {
+        // retract front lifter
+        frontLifterMotors.set(-0.4);
+        _rearLifterMotor.set(0.0);
+        climbInitialize = true;
+      } else {
+        frontLifterMotors.set(0.0);
+      }
+      if (Math.abs(_joy1.getRawAxis(2)) > .2) {
+        // deploy rear lifter
+        frontLifterMotors.set(0.0);
+        _rearLifterMotor.set(-_joy1.getRawAxis(2));
+      } else if (_joy1.getRawButton(5)) {
+        // retract rear lifter
+        frontLifterMotors.set(0.0);
+        if (limitSwitches && !limitSwitchRearLift.get()) {
+          _rearLifterMotor.set(0.7);
+        } else if (limitSwitches && limitSwitchRearLift.get()) {
+          _rearLifterMotor.set(0);
+        } else if (!limitSwitches) {
+          _rearLifterMotor.set(0.3);
+        }
+        forwardMotion = 0.2;
+        climbInitialize = true;
+      } else {
+        _rearLifterMotor.set(0.0);
+      }
     }
 
     // Intake Logic Begins Here
@@ -512,6 +550,7 @@ public class Robot extends TimedRobot {
         strafe = 1.0;
       }
     }
+    turnRotation = _joy1.getRawAxis(4) * 0.4;
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
       xDegree = Math.round(imu.getAngleX()) % 360;
@@ -528,37 +567,36 @@ public class Robot extends TimedRobot {
         lTrack4 = lineTracker4.get();
       }
       if (autoTrackingEnabled) { // Line Tracker Enabled
-        rotation = _joy1.getRawAxis(4);
         if (lTrack0) {
-          rotation = rotation + turnSpeed(0.3);
+          turnRotation = turnRotation + turnSpeed(0.3);
           strafe = strafe + 0.6;
-          _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack4) {
-          rotation = rotation + turnSpeed(0.3);
+          turnRotation = turnRotation + turnSpeed(0.3);
           strafe = strafe - 0.6;
-          _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack1) {
-          rotation = rotation + turnSpeed(0.2);
+          turnRotation = turnRotation + turnSpeed(0.2);
           strafe = strafe + 0.4;
-          _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack3) {
-          rotation = rotation + turnSpeed(0.2);
+          turnRotation = turnRotation + turnSpeed(0.2);
           strafe = strafe - 0.4;
-          _mDrive.driveCartesian(strafe, forwardMotion, rotation, 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack2) {
-          rotation = rotation + turnSpeed(0.1);
-          _mDrive.driveCartesian(0, forwardMotion, rotation, 0);
+          turnRotation = turnRotation + turnSpeed(0.1);
+          _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
         } else {
-          _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         }
       } else {
-        _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
+        _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
       }
     } else {
       // The the mecanum drive is listed below
-      _mDrive.driveCartesian(strafe, forwardMotion, _joy1.getRawAxis(4), 0);
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     }
-    if (_joy1.getRawAxis(4) < -0.2 || _joy1.getRawAxis(4) > 0.2) {
+    if (turnRotation < -0.2 || turnRotation > 0.2) {
       if (pastZDegree == zDegree) {
         zDegreeIterations++;
         if (zDegreeIterations > 15) {
