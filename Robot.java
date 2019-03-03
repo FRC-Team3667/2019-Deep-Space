@@ -104,6 +104,9 @@ public class Robot extends TimedRobot {
   DoubleSolenoid pneuHatchPanelTop;
   DoubleSolenoid pneuHatchPanelBottom;
   boolean pneuEnabled = false;
+  Boolean pneuVaccumeIsOn = false;
+  double vaccumeEndTime = 0;
+  
 
   @Override
   public void robotInit() {
@@ -284,17 +287,26 @@ public class Robot extends TimedRobot {
 
     // Turn Compresser on/off
     if (pneumatics) {
-      if (_joy2.getRawButton(1)) {
-        pneuVacuum.set(DoubleSolenoid.Value.kForward);
-      } else {
-        pneuVacuum.set(DoubleSolenoid.Value.kReverse);
-      }
       if (_joy2.getRawButton(2)) {
-        pneuHatchPanelTop.set(DoubleSolenoid.Value.kForward);
-        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kForward);
-      } else {
+        pneuVaccumeIsOn = true;
+        pneuVacuum.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
         pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
+      } else if(pneuVaccumeIsOn){
+        pneuHatchPanelTop.set(DoubleSolenoid.Value.kForward);
+        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kForward);
+        vaccumeEndTime = System.currentTimeMillis() + 4000;
+        pneuVaccumeIsOn = false;
+      } else {
+        if(vaccumeEndTime == 0 || vaccumeEndTime <= System.currentTimeMillis()){
+          pneuVacuum.set(DoubleSolenoid.Value.kReverse);
+        }
+      }
+
+      if (_joy2.getRawButton(1)) {
+        pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
+        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
+        pneuVacuum.set(DoubleSolenoid.Value.kReverse);
       }
     }
   }
