@@ -8,7 +8,8 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
-
+import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.cscore.UsbCamera;
@@ -21,6 +22,18 @@ import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
 
 import com.analog.adis16448.frc.ADIS16448_IMU;
 
@@ -51,6 +64,12 @@ public class Robot extends TimedRobot {
 
   // Serial Port Information
   SerialPort theThePort;
+
+  public enum RunningInMode {
+    none, teleop, auton, test;
+  }
+
+  RunningInMode runMode = RunningInMode.none;
 
   // Line Tracker
   DigitalInput lineTracker0;
@@ -125,6 +144,7 @@ public class Robot extends TimedRobot {
     // Setup the joystick
     try {
       _joy1 = new Joystick(0);
+      //_joy1 = new XboxController(0);
     } catch (Exception ex) {
     }
     try {
@@ -142,6 +162,10 @@ public class Robot extends TimedRobot {
     _frontTRightMotor.setInverted(true);
     _rearTLeftMotor.setInverted(true);
     _rearTRightMotor.setInverted(true);
+    _frontTLeftMotor.setNeutralMode(NeutralMode.Brake);
+    _frontTRightMotor.setNeutralMode(NeutralMode.Brake);
+    _rearTLeftMotor.setNeutralMode(NeutralMode.Brake);
+    _rearTRightMotor.setNeutralMode(NeutralMode.Brake);    
     _mDrive = new MecanumDrive(_frontTLeftMotor, _rearTLeftMotor, _frontTRightMotor, _rearTRightMotor);
 
     // Create front Lifter motors
@@ -254,6 +278,26 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotPeriodic() {
+    // // Rumble
+    // if (runMode == RunningInMode.teleop || runMode == RunningInMode.test) {
+    //   double timeRemaining = Timer.getMatchTime();
+    //   SmartDashboard.putNumber("time left", timeRemaining);
+    //   SmartDashboard.putString("running mode", runMode.toString());
+    //   if (timeRemaining < 10) {
+    //     _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
+    //     _joy1.setRumble(RumbleType.kRightRumble, 1.0);
+    //   } else if (timeRemaining < 30 && timeRemaining > 27) {
+    //     _joy1.setRumble(RumbleType.kRightRumble, 1.0);
+    //   } else if (timeRemaining < 20 && timeRemaining > 17) {
+    //     _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
+    //   }
+    // }
+    // else
+    // {
+    //   _joy1.setRumble(RumbleType.kLeftRumble, 0);
+    //   _joy1.setRumble(RumbleType.kRightRumble, 0);
+    // }
+
     // Perform a full IMU reset and calibration joy2 "Start" pressed
     // This might take up to 9 seconds
     if (_joy1.getRawButton(8)) {
@@ -436,11 +480,17 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
+    runMode = RunningInMode.auton;
   }
 
   @Override
   public void autonomousPeriodic() {
     teleopPeriodic();
+  }
+
+  @Override
+  public void teleopInit() {
+    runMode = RunningInMode.teleop;
   }
 
   @Override
@@ -515,7 +565,7 @@ public class Robot extends TimedRobot {
     }
 
     // Intake Logic Begins Here
-    double lowerInTake = _joy2.getRawAxis(1);
+    double lowerInTake = _joy2.getRawAxis(1) / 5;
     if (lowerInTake > 0.05 || lowerInTake < -0.05) {
       _intakeLifterMotor.set(lowerInTake);
     } else {
@@ -620,10 +670,9 @@ public class Robot extends TimedRobot {
     return returnSpeed;
   }
 
-  /**
-   * This function is called periodically during test mode.
-   */
   @Override
   public void testPeriodic() {
+    teleopPeriodic();
+    runMode = RunningInMode.test;
   }
 }
