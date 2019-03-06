@@ -93,8 +93,8 @@ public class Robot extends TimedRobot {
   boolean imuIsWorkingCorrectly = true; // IMU is Working or Not
 
   // Line Tracker Values
-  double pastZDegree = zDegree;
-  int zDegreeIterations = 0;
+  double pastXDegree = xDegree;
+  int xDegreeIterations = 0;
   double targetDegree = 0;
   double rotationCounter = 1;
   double turnRotation = 0;
@@ -105,12 +105,13 @@ public class Robot extends TimedRobot {
   boolean lTrack3 = false;
   boolean lTrack4 = false;
   boolean autoTrackingEnabled = false;
+  double lineTrackerEndTime = 0;
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
   boolean cServer = false; // Camera Server
   boolean jCam = false; // Jevois Camera
-  boolean lTrack = false; // Line Tracker
+  boolean lTrack = true; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
   boolean pneumatics = true; // Pneumatics System
   boolean limitSwitches = true; // limit switches
@@ -133,9 +134,11 @@ public class Robot extends TimedRobot {
   boolean climbInitialize = true;
 
   // Limit switches
-  DigitalInput limitSwitchIntakeLift;
   DigitalInput limitSwitchRearLift;
-
+  //DigitalInput limitSwitchRearDrop;
+  //DigitalInput limitSwitchIntakeUp;
+  //DigitalInput limitSwitchIntakeDown;
+  
   @Override
   public void robotInit() {
 
@@ -144,7 +147,7 @@ public class Robot extends TimedRobot {
     // Setup the joystick
     try {
       _joy1 = new Joystick(0);
-      //_joy1 = new XboxController(0);
+      // _joy1 = new XboxController(0);
     } catch (Exception ex) {
     }
     try {
@@ -165,7 +168,7 @@ public class Robot extends TimedRobot {
     _frontTLeftMotor.setNeutralMode(NeutralMode.Brake);
     _frontTRightMotor.setNeutralMode(NeutralMode.Brake);
     _rearTLeftMotor.setNeutralMode(NeutralMode.Brake);
-    _rearTRightMotor.setNeutralMode(NeutralMode.Brake);    
+    _rearTRightMotor.setNeutralMode(NeutralMode.Brake);
     _mDrive = new MecanumDrive(_frontTLeftMotor, _rearTLeftMotor, _frontTRightMotor, _rearTRightMotor);
 
     // Create front Lifter motors
@@ -269,8 +272,10 @@ public class Robot extends TimedRobot {
     }
 
     if (limitSwitches) {
-      // limitSwitchIntakeLift = new DigitalInput(1);
-      limitSwitchRearLift = new DigitalInput(0);
+      limitSwitchRearLift = new DigitalInput(5);
+      // limitSwitchRearDrop = new DigitalInput(6);
+      // limitSwitchIntakeUp = new DigitalInput(7);
+      // limitSwitchIntakeDown = new DigitalInput(8);
     }
 
     climbInitialize = true;
@@ -280,22 +285,22 @@ public class Robot extends TimedRobot {
   public void robotPeriodic() {
     // // Rumble
     // if (runMode == RunningInMode.teleop || runMode == RunningInMode.test) {
-    //   double timeRemaining = Timer.getMatchTime();
-    //   SmartDashboard.putNumber("time left", timeRemaining);
-    //   SmartDashboard.putString("running mode", runMode.toString());
-    //   if (timeRemaining < 10) {
-    //     _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
-    //     _joy1.setRumble(RumbleType.kRightRumble, 1.0);
-    //   } else if (timeRemaining < 30 && timeRemaining > 27) {
-    //     _joy1.setRumble(RumbleType.kRightRumble, 1.0);
-    //   } else if (timeRemaining < 20 && timeRemaining > 17) {
-    //     _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
-    //   }
+    // double timeRemaining = Timer.getMatchTime();
+    // SmartDashboard.putNumber("time left", timeRemaining);
+    // SmartDashboard.putString("running mode", runMode.toString());
+    // if (timeRemaining < 10) {
+    // _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
+    // _joy1.setRumble(RumbleType.kRightRumble, 1.0);
+    // } else if (timeRemaining < 30 && timeRemaining > 27) {
+    // _joy1.setRumble(RumbleType.kRightRumble, 1.0);
+    // } else if (timeRemaining < 20 && timeRemaining > 17) {
+    // _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
+    // }
     // }
     // else
     // {
-    //   _joy1.setRumble(RumbleType.kLeftRumble, 0);
-    //   _joy1.setRumble(RumbleType.kRightRumble, 0);
+    // _joy1.setRumble(RumbleType.kLeftRumble, 0);
+    // _joy1.setRumble(RumbleType.kRightRumble, 0);
     // }
 
     // Perform a full IMU reset and calibration joy2 "Start" pressed
@@ -337,7 +342,8 @@ public class Robot extends TimedRobot {
     }
 
     // Turn autoTracking on/off
-    if (_joy2.getRawButton(4)) {
+    if (_joy2.getRawButton(4) && lineTrackerEndTime < System.currentTimeMillis()) {
+      lineTrackerEndTime = System.currentTimeMillis() + 600;
       if (autoTrackingEnabled) {
         autoTrackingEnabled = false;
       } else {
@@ -394,18 +400,18 @@ public class Robot extends TimedRobot {
     }
     imuIsWorkingCorrectly = true;
     SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-    zDegreeIterations = 0;
+    xDegreeIterations = 0;
   }
 
   // Locate the nearest target angle for our line tracker
-  public double find45Degree(double zDegree) {
+  public double find45Degree(double xDegree) {
     double retDoub = -1;
     int povVal2 = _joy2.getPOV(); // If driver indicate override use it
     if (povVal2 >= 0) {
       retDoub = povVal2;
     } else {
-      int plusOne = (int) zDegree;
-      int minusOne = (int) zDegree;
+      int plusOne = (int) xDegree;
+      int minusOne = (int) xDegree;
       while (retDoub < 0) {
         switch (plusOne) {
         case 0:
@@ -565,7 +571,7 @@ public class Robot extends TimedRobot {
     }
 
     // Intake Logic Begins Here
-    double lowerInTake = _joy2.getRawAxis(1) / 5;
+    double lowerInTake = _joy2.getRawAxis(1) / 4;
     if (lowerInTake > 0.05 || lowerInTake < -0.05) {
       _intakeLifterMotor.set(lowerInTake);
     } else {
@@ -605,10 +611,10 @@ public class Robot extends TimedRobot {
       zDegree = Math.round(imu.getAngleZ()) % 360;
       xDegree = Math.round(imu.getAngleX()) % 360;
       yDegree = Math.round(imu.getAngleY()) % 360;
-      if (zDegree < 0) {
-        zDegree += 360;
+      if (xDegree < 0) {
+        xDegree += 360;
       }
-      targetDegree = find45Degree(zDegree);
+      targetDegree = find45Degree(xDegree);
       if (lTrack) {
         lTrack0 = lineTracker0.get();
         lTrack1 = lineTracker1.get();
@@ -647,24 +653,24 @@ public class Robot extends TimedRobot {
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     }
     if (turnRotation < -0.2 || turnRotation > 0.2) {
-      if (pastZDegree == zDegree) {
-        zDegreeIterations++;
-        if (zDegreeIterations > 15) {
+      if (pastXDegree == xDegree) {
+        xDegreeIterations++;
+        if (xDegreeIterations > 15) {
           imuIsWorkingCorrectly = false; // We have a real Problem
         }
       } else {
-        pastZDegree = zDegree;
-        zDegreeIterations = 0;
+        pastXDegree = xDegree;
+        xDegreeIterations = 0;
       }
     }
   }
 
   public double turnSpeed(double fullspeed) {
     double returnSpeed = fullspeed;
-    if (targetDegree == 0 && zDegree > 270) {
+    if (targetDegree == 0 && xDegree > 270) {
       returnSpeed = returnSpeed * -1.0; // we are overlapping zero
     }
-    if (zDegree > targetDegree) {
+    if (xDegree > targetDegree) {
       returnSpeed = returnSpeed * -1.0;
     }
     return returnSpeed;
