@@ -84,13 +84,13 @@ public class Robot extends TimedRobot {
   double rotationCounter = 1;
   double turnRotation = 0;
   double forwardMotion = 0;
+  double lineTrackerEndTime = 0;
   boolean lTrack0 = false;
   boolean lTrack1 = false;
   boolean lTrack2 = false;
   boolean lTrack3 = false;
   boolean lTrack4 = false;
   boolean autoTrackingEnabled = false;
-  double lineTrackerEndTime = 0;
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
@@ -129,7 +129,6 @@ public class Robot extends TimedRobot {
     // Setup the joystick
     try {
       _joy1 = new Joystick(0);
-      // _joy1 = new XboxController(0);
     } catch (Exception ex) {
     }
     try {
@@ -266,7 +265,7 @@ public class Robot extends TimedRobot {
 
     // Perform a full IMU reset and calibration joy2 "Start" pressed
     // This might take up to 9 seconds
-    if (_joy1.getRawButton(8)) {
+    if (_joy1.getRawButton(8) || _joy2.getRawButton(8)) {
       manualImuCalibration();
     }
     if (!didItAlready) {
@@ -274,7 +273,7 @@ public class Robot extends TimedRobot {
     }
 
     // Reset the imu when the "Y" yellow button is pressed
-    if (_joy2.getRawButton(3) && tenDegrees) {
+    if ((_joy1.getRawButton(3) || _joy2.getRawButton(3)) && tenDegrees) {
       imu.reset();
       imuIsWorkingCorrectly = true;
       SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
@@ -285,22 +284,20 @@ public class Robot extends TimedRobot {
       SmartDashboard.putBoolean("Rear Limit", limitSwitchRearLift.get());
     }
     // Show the needed data to the Smart Dashboard
-    if (tenDegrees) {
-      SmartDashboard.putNumber("zDegree", zDegree);
-      SmartDashboard.putNumber("xDegree", xDegree);
-      SmartDashboard.putNumber("yDegree", yDegree);
-      SmartDashboard.putNumber("targetDegree", targetDegree);
-      SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
-      SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
-      SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
-      SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
-      SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
-      SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-      SmartDashboard.putBoolean("Auto Tracking", autoTrackingEnabled);
-      SmartDashboard.putNumber("frontspeed", frontLiftSpeed);
-      SmartDashboard.putNumber("rearspeed", rearLiftSpeed);
-      SmartDashboard.putBoolean("pneu Enabled", pneuEnabled);
-    }
+    SmartDashboard.putNumber("zDegree", zDegree);
+    SmartDashboard.putNumber("xDegree", xDegree);
+    SmartDashboard.putNumber("yDegree", yDegree);
+    SmartDashboard.putNumber("targetDegree", targetDegree);
+    SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+    SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+    SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+    SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+    SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
+    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+    SmartDashboard.putBoolean("Auto Tracking", autoTrackingEnabled);
+    SmartDashboard.putNumber("frontspeed", frontLiftSpeed);
+    SmartDashboard.putNumber("rearspeed", rearLiftSpeed);
+    SmartDashboard.putBoolean("pneu Enabled", pneuEnabled);
 
     // Turn autoTracking on/off
     if (_joy2.getRawButton(4) && lineTrackerEndTime < System.currentTimeMillis()) {
@@ -467,13 +464,13 @@ public class Robot extends TimedRobot {
     // Platform Climb Logic
     // This is our platform climb at the end
     if (_joy1.getRawButton(4)) { // Automated Climb
-      // store starting climb angle 
+      // store starting climb angle
       if (climbInitialize) {
         startClimbDegree = Math.round(imu.getAngleY()) % 360;
         climbInitialize = false;
       }
       // get climb speeds
-      rearLiftSpeed = frontLiftSpeed * 0.7;
+      rearLiftSpeed = frontLiftSpeed * 1.0;
       yDegree = Math.round(imu.getAngleY()) % 360;
       if (yDegree > startClimbDegree + 5 && yDegree < startClimbDegree + 180) {
         rearLiftSpeed = rearLiftSpeed + 0.4; // Increase Speed to rear if front is too fast
@@ -510,7 +507,7 @@ public class Robot extends TimedRobot {
       } else {
         frontLifterMotors.set(0.0);
       }
-      if (Math.abs(_joy1.getRawAxis(2)) > .2) {
+      if (Math.abs(_joy1.getRawAxis(2)) > 0.1) {
         // deploy rear lifter
         frontLifterMotors.set(0.0);
         _rearLifterMotor.set(-_joy1.getRawAxis(2));
@@ -534,10 +531,10 @@ public class Robot extends TimedRobot {
     // Intake Logic Begins Here
     double lowerInTake = _joy2.getRawAxis(1);
     if (lowerInTake > 0.05 || lowerInTake < -0.05) {
-      if (lowerInTake > 0) {
-        _intakeLifterMotor.set(lowerInTake / 3); // Raise up
+      if (lowerInTake < 0) {
+        _intakeLifterMotor.set(lowerInTake / 3); //  down
       } else {
-        _intakeLifterMotor.set(lowerInTake / 5); // Lower down
+        _intakeLifterMotor.set(lowerInTake / 4); //  up
       }
     } else {
       _intakeLifterMotor.set(0); // Stop motion
@@ -581,11 +578,15 @@ public class Robot extends TimedRobot {
       }
       targetDegree = find45Degree(xDegree);
       if (lTrack) {
-        lTrack0 = lineTracker0.get();
-        lTrack1 = lineTracker1.get();
-        lTrack2 = lineTracker2.get();
-        lTrack3 = lineTracker3.get();
-        lTrack4 = lineTracker4.get();
+        try {
+          lTrack0 = lineTracker0.get();
+          lTrack1 = lineTracker1.get();
+          lTrack2 = lineTracker2.get();
+          lTrack3 = lineTracker3.get();
+          lTrack4 = lineTracker4.get();
+        } catch (Exception ex) {
+          autoTrackingEnabled = false;
+        }
       }
       if (autoTrackingEnabled && imuIsWorkingCorrectly) { // Line Tracker Enabled
         if (lTrack0) {
