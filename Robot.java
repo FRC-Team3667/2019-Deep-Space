@@ -2,14 +2,11 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.cscore.UsbCamera;
@@ -22,19 +19,6 @@ import edu.wpi.first.wpilibj.SerialPort.Port;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation;
-
 import com.analog.adis16448.frc.ADIS16448_IMU;
 
 public class Robot extends TimedRobot {
@@ -91,6 +75,7 @@ public class Robot extends TimedRobot {
   double yDegree = 0;
   boolean didItAlready = false;
   boolean imuIsWorkingCorrectly = true; // IMU is Working or Not
+  Timer robotTimer = new Timer();
 
   // Line Tracker Values
   double pastXDegree = xDegree;
@@ -116,9 +101,6 @@ public class Robot extends TimedRobot {
   boolean pneumatics = true; // Pneumatics System
   boolean limitSwitches = true; // limit switches
 
-  // Timer
-  Timer robotTimer = new Timer();
-
   // Pneumatics
   Compressor scottCompressor;
   DoubleSolenoid pneuVacuum;
@@ -135,10 +117,10 @@ public class Robot extends TimedRobot {
 
   // Limit switches
   DigitalInput limitSwitchRearLift;
-  //DigitalInput limitSwitchRearDrop;
-  //DigitalInput limitSwitchIntakeUp;
-  //DigitalInput limitSwitchIntakeDown;
-  
+  // DigitalInput limitSwitchRearDrop;
+  // DigitalInput limitSwitchIntakeUp;
+  // DigitalInput limitSwitchIntakeDown;
+
   @Override
   public void robotInit() {
 
@@ -174,7 +156,6 @@ public class Robot extends TimedRobot {
     // Create front Lifter motors
     _frontLifterOne = new WPI_TalonSRX(23);
     _frontLifterTwo = new WPI_TalonSRX(22);
-
     frontLifterMotors = new SpeedControllerGroup(_frontLifterOne, _frontLifterTwo);
 
     // Create rear Lifter Motors
@@ -277,31 +258,11 @@ public class Robot extends TimedRobot {
       // limitSwitchIntakeUp = new DigitalInput(7);
       // limitSwitchIntakeDown = new DigitalInput(8);
     }
-
     climbInitialize = true;
   }
 
   @Override
   public void robotPeriodic() {
-    // // Rumble
-    // if (runMode == RunningInMode.teleop || runMode == RunningInMode.test) {
-    // double timeRemaining = Timer.getMatchTime();
-    // SmartDashboard.putNumber("time left", timeRemaining);
-    // SmartDashboard.putString("running mode", runMode.toString());
-    // if (timeRemaining < 10) {
-    // _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
-    // _joy1.setRumble(RumbleType.kRightRumble, 1.0);
-    // } else if (timeRemaining < 30 && timeRemaining > 27) {
-    // _joy1.setRumble(RumbleType.kRightRumble, 1.0);
-    // } else if (timeRemaining < 20 && timeRemaining > 17) {
-    // _joy1.setRumble(RumbleType.kLeftRumble, 1.0);
-    // }
-    // }
-    // else
-    // {
-    // _joy1.setRumble(RumbleType.kLeftRumble, 0);
-    // _joy1.setRumble(RumbleType.kRightRumble, 0);
-    // }
 
     // Perform a full IMU reset and calibration joy2 "Start" pressed
     // This might take up to 9 seconds
@@ -506,7 +467,7 @@ public class Robot extends TimedRobot {
     // Platform Climb Logic
     // This is our platform climb at the end
     if (_joy1.getRawButton(4)) { // Automated Climb
-      // store starting climb angle and time
+      // store starting climb angle 
       if (climbInitialize) {
         startClimbDegree = Math.round(imu.getAngleY()) % 360;
         climbInitialize = false;
@@ -571,11 +532,15 @@ public class Robot extends TimedRobot {
     }
 
     // Intake Logic Begins Here
-    double lowerInTake = _joy2.getRawAxis(1) / 4;
+    double lowerInTake = _joy2.getRawAxis(1);
     if (lowerInTake > 0.05 || lowerInTake < -0.05) {
-      _intakeLifterMotor.set(lowerInTake);
+      if (lowerInTake > 0) {
+        _intakeLifterMotor.set(lowerInTake / 3); // Raise up
+      } else {
+        _intakeLifterMotor.set(lowerInTake / 5); // Lower down
+      }
     } else {
-      _intakeLifterMotor.set(0);
+      _intakeLifterMotor.set(0); // Stop motion
     }
 
     // Intake logic to receive and give a ball
@@ -622,7 +587,7 @@ public class Robot extends TimedRobot {
         lTrack3 = lineTracker3.get();
         lTrack4 = lineTracker4.get();
       }
-      if (autoTrackingEnabled) { // Line Tracker Enabled
+      if (autoTrackingEnabled && imuIsWorkingCorrectly) { // Line Tracker Enabled
         if (lTrack0) {
           turnRotation = turnRotation + turnSpeed(0.3);
           strafe = strafe + 0.6;
