@@ -94,9 +94,9 @@ public class Robot extends TimedRobot {
 
   // Sections of code to include or exclude
   boolean nTables = false; // Network Tables in Use
-  boolean cServer = false; // Camera Server
+  boolean cServer = true; // Camera Server
   boolean jCam = false; // Jevois Camera
-  boolean lTrack = true; // Line Tracker
+  boolean lTrack = false; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
   boolean pneumatics = true; // Pneumatics System
   boolean limitSwitches = true; // limit switches
@@ -117,6 +117,7 @@ public class Robot extends TimedRobot {
 
   // Limit switches
   DigitalInput limitSwitchRearLift;
+  DigitalInput limitSwitchFrontLift;
   // DigitalInput limitSwitchRearDrop;
   // DigitalInput limitSwitchIntakeUp;
   // DigitalInput limitSwitchIntakeDown;
@@ -164,6 +165,8 @@ public class Robot extends TimedRobot {
     _intakeLifterMotor = new WPI_TalonSRX(21);
     _intakeLowerMotor = new WPI_VictorSPX(31);
     _intakeUpperMotor = new WPI_VictorSPX(30);
+    _intakeLowerMotor.setNeutralMode(NeutralMode.Brake);
+    _intakeUpperMotor.setNeutralMode(NeutralMode.Brake);
 
     // Create the line tracker sensors
     if (lTrack) {
@@ -253,6 +256,7 @@ public class Robot extends TimedRobot {
 
     if (limitSwitches) {
       limitSwitchRearLift = new DigitalInput(5);
+      limitSwitchFrontLift = new DigitalInput(6);
       // limitSwitchRearDrop = new DigitalInput(6);
       // limitSwitchIntakeUp = new DigitalInput(7);
       // limitSwitchIntakeDown = new DigitalInput(8);
@@ -486,7 +490,11 @@ public class Robot extends TimedRobot {
         frontLiftSpeed = maxFrontLiftSpeed; // Enforce max speed limits
       }
       // perform climb
-      frontLifterMotors.set(frontLiftSpeed);
+      if (limitSwitches && !limitSwitchFrontLift.get()) {
+        frontLifterMotors.set(frontLiftSpeed);
+      } else if (!limitSwitches) {
+        frontLifterMotors.set(frontLiftSpeed);
+      }
       _rearLifterMotor.set(rearLiftSpeed * -1.0);
       if (forwardMotion < 0.5 && forwardMotion > -0.5) {
         forwardMotion = 0.2; // This should cause a slow forward wheel spin while climbing
@@ -497,7 +505,9 @@ public class Robot extends TimedRobot {
     } else {
       if (Math.abs(_joy1.getRawAxis(3)) > 0.1) {
         // deploy front lifter
-        frontLifterMotors.set(_joy1.getRawAxis(3));
+        if (limitSwitches && !limitSwitchFrontLift.get()) {
+          frontLifterMotors.set(_joy1.getRawAxis(3));
+        }
         _rearLifterMotor.set(0.0);
       } else if (_joy1.getRawButton(6)) {
         // retract front lifter
@@ -594,16 +604,16 @@ public class Robot extends TimedRobot {
           strafe = strafe + 0.6;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack4) {
-          turnRotation = turnRotation + turnSpeed(0.3);
-          strafe = strafe - 0.6;
+          turnRotation = turnRotation - turnSpeed(0.3);
+          strafe = strafe + 0.6;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack1) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe = strafe + 0.4;
+          strafe = strafe - 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack3) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe = strafe - 0.4;
+          strafe = strafe + 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack2) {
           turnRotation = turnRotation + turnSpeed(0.1);
