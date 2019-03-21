@@ -95,7 +95,7 @@ public class Robot extends TimedRobot {
   boolean nTables = false; // Network Tables in Use
   boolean cServer = true; // Camera Server
   boolean jCam = false; // Jevois Camera
-  boolean lTrack = false; // Line Tracker
+  boolean lTrack = true; // Line Tracker
   boolean tenDegrees = true; // 10 degrees of freedom
   boolean pneumatics = true; // Pneumatics System
   boolean limitSwitches = true; // limit switches
@@ -514,7 +514,10 @@ public class Robot extends TimedRobot {
     turnRotation = _joy1.getRawAxis(4) * 0.4;
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
-      xDegree = Math.round(imu.getAngleX()) % 360;
+      xDegree = 360 - Math.round(imu.getAngleX()) % 360; //Invert due to roborio orentation/position/location/placement
+      if(xDegree == 360) {
+        xDegree = 0;
+      }
       yDegree = Math.round(imu.getAngleY()) % 360;
       if (xDegree < 0) {
         xDegree += 360;
@@ -534,19 +537,19 @@ public class Robot extends TimedRobot {
       if (targetDegree >= 0 && imuIsWorkingCorrectly) { // Line Tracker Enabled
         if (lTrack0) {
           turnRotation = turnRotation + turnSpeed(0.3);
-          strafe = strafe + 0.4;
+          strafe += 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack4) {
           turnRotation = turnRotation + turnSpeed(0.3);
-          strafe = strafe + 0.4;
+          strafe -= 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack1) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe = strafe - 0.25;
+          strafe += 0.25;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack3) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe = strafe + 0.25;
+          strafe -= 0.25;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack2) {
           turnRotation = turnRotation + turnSpeed(0.1);
