@@ -121,6 +121,15 @@ public class Robot extends TimedRobot {
   // DigitalInput limitSwitchIntakeUp;
   // DigitalInput limitSwitchIntakeDown;
 
+  // Digital Limit
+  /*
+   * double currents[][] = new double[3][10]; double avgCurrents[][] = new
+   * double[3][10]; public static final int POGO = 0; public static final int
+   * FANGS = 1; public static final int INTAKE = 2; public static final int
+   * MOTOR_TIMEOUT = 2000; //in ms
+   * 
+   */
+
   // Intake
   int cycles = 0;
   double continueFullSpeedUntil = 0;
@@ -514,9 +523,14 @@ public class Robot extends TimedRobot {
     turnRotation = _joy1.getRawAxis(4) * 0.4;
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
-      xDegree = 360 - Math.round(imu.getAngleX()) % 360; //Invert due to roborio orentation/position/location/placement
-      if(xDegree == 360) {
+      xDegree = Math.round(imu.getAngleX()) % 360;
+      // Invert due to roborio orentation/position/location/placement
+      if (xDegree <= 0) {
+        xDegree = Math.abs(xDegree);
+      } else if (xDegree == 360) {
         xDegree = 0;
+      } else {
+        xDegree = 360 - xDegree;
       }
       yDegree = Math.round(imu.getAngleY()) % 360;
       if (xDegree < 0) {
