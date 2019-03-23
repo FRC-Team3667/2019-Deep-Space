@@ -283,6 +283,7 @@ public class Robot extends TimedRobot {
     // This might take up to 9 seconds
     if (_joy1.getRawButton(8) || _joy2.getRawButton(8)) {
       manualImuCalibration();
+      imu.reset();
     }
     if (!didItAlready) {
       imuCalibration();
@@ -394,7 +395,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    forwardMotion = _joy1.getRawAxis(1) * -1;
+    forwardMotion = -_joy1.getRawAxis(1);
 
     // Platform Climb Logic
     // This is our platform climb at the end
@@ -448,10 +449,10 @@ public class Robot extends TimedRobot {
       } else {
         frontLifterMotors.set(0.0);
       }
-      if (Math.abs(_joy1.getRawAxis(2)) > 0.1) {
+      if (Math.abs(-_joy1.getRawAxis(2)) > 0.1) {
         // deploy rear lifter
         frontLifterMotors.set(0.0);
-        _rearLifterMotor.set(-_joy1.getRawAxis(2));
+        _rearLifterMotor.set(_joy1.getRawAxis(2));
       } else if (_joy1.getRawButton(5)) {
         // retract rear lifter
         frontLifterMotors.set(0.0);
@@ -549,21 +550,21 @@ public class Robot extends TimedRobot {
         }
       }
       if (targetDegree >= 0 && imuIsWorkingCorrectly) { // Line Tracker Enabled
-        if (lTrack0) {
+        /*if (lTrack0) {
           turnRotation = turnRotation + turnSpeed(0.3);
-          strafe += 0.4;
+          strafe += 0.6;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack4) {
           turnRotation = turnRotation + turnSpeed(0.3);
-          strafe -= 0.4;
+          strafe -= 0.6;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack1) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe += 0.25;
+          strafe += 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack3) {
           turnRotation = turnRotation + turnSpeed(0.2);
-          strafe -= 0.25;
+          strafe -= 0.4;
           _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
         } else if (lTrack2) {
           turnRotation = turnRotation + turnSpeed(0.1);
@@ -577,7 +578,36 @@ public class Robot extends TimedRobot {
     } else {
       // The the mecanum drive is listed below
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+    }*/
+    if (lTrack0) {
+      turnRotation = -(turnRotation + turnSpeed(0.3));
+      strafe = strafe + 0.4;
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+    } else if (lTrack4) {
+      turnRotation = -(turnRotation + turnSpeed(0.3));
+      strafe = strafe - 0.4;
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+    } else if (lTrack1) {
+      turnRotation = -(turnRotation + turnSpeed(0.2));
+      strafe = strafe + 0.25;
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+    } else if (lTrack3) {
+      turnRotation = -(turnRotation + turnSpeed(0.2));
+      strafe = strafe - 0.25;
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+    } else if (lTrack2) {
+      turnRotation = -(turnRotation + turnSpeed(0.1));
+      _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
+    } else {
+      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     }
+  } else {
+    _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+  }
+} else {
+  // The the mecanum drive is listed below
+  _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+}
     if (turnRotation < -0.2 || turnRotation > 0.2) {
       if (pastXDegree == xDegree) {
         xDegreeIterations++;
