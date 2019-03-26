@@ -105,6 +105,8 @@ public class Robot extends TimedRobot {
   DoubleSolenoid pneuVacuum;
   DoubleSolenoid pneuHatchPanelTop;
   DoubleSolenoid pneuHatchPanelBottom;
+  DoubleSolenoid pneuHatchPanelPiston;
+  DoubleSolenoid pneuHatchPanelClaw;
   boolean pneuEnabled = false;
   boolean pneuVaccumeIsOn = false;
   double vaccumeEndTime = 0;
@@ -317,7 +319,7 @@ public class Robot extends TimedRobot {
 
     // Turn Compresser on/off
     if (pneumatics) {
-      if (_joy2.getRawButton(2)) {
+      /*if (_joy2.getRawButton(2)) {
         pneuVaccumeIsOn = true;
         pneuVacuum.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
@@ -331,12 +333,27 @@ public class Robot extends TimedRobot {
         if (vaccumeEndTime == 0 || vaccumeEndTime <= System.currentTimeMillis()) {
           pneuVacuum.set(DoubleSolenoid.Value.kReverse);
         }
-      }
-
-      if (_joy2.getRawButton(1)) {
-        pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
-        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
-        pneuVacuum.set(DoubleSolenoid.Value.kReverse);
+      }*/
+      boolean hatchPlacementJustUsed = false;
+      boolean hatchIntakeJustUsed = false;
+      double hatchEndTime = 0.0;
+      if (_joy2.getRawButton(2)) {
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
+        hatchPlacementJustUsed = true;
+      } else if (hatchPlacementJustUsed) {
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+        hatchEndTime = System.currentTimeMillis() + 4000;
+        hatchPlacementJustUsed = false;
+      } else if (_joy2.getRawButton(1)) {
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+      } else if (hatchIntakeJustUsed) {
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
+        hatchEndTime = System.currentTimeMillis() + 500;
+      } else if (hatchEndTime <= System.currentTimeMillis()) {
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
       }
     }
   }
@@ -550,53 +567,24 @@ public class Robot extends TimedRobot {
         }
       }
       if (targetDegree >= 0 && imuIsWorkingCorrectly) { // Line Tracker Enabled
-        /*if (lTrack0) {
-          turnRotation = turnRotation + turnSpeed(0.3);
-          strafe += 0.6;
-          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-        } else if (lTrack4) {
-          turnRotation = turnRotation + turnSpeed(0.3);
-          strafe -= 0.6;
-          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-        } else if (lTrack1) {
-          turnRotation = turnRotation + turnSpeed(0.2);
-          strafe += 0.4;
-          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-        } else if (lTrack3) {
-          turnRotation = turnRotation + turnSpeed(0.2);
-          strafe -= 0.4;
-          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-        } else if (lTrack2) {
-          turnRotation = turnRotation + turnSpeed(0.1);
-          _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
-        } else {
-          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-        }
-      } else {
-        _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-      }
-    } else {
-      // The the mecanum drive is listed below
-      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-    }*/
     if (lTrack0) {
-      turnRotation = -(turnRotation + turnSpeed(0.3));
+      turnRotation = turnRotation + turnSpeed(0.3);
       strafe = strafe + 0.4;
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     } else if (lTrack4) {
-      turnRotation = -(turnRotation + turnSpeed(0.3));
+      turnRotation = turnRotation + turnSpeed(0.3);
       strafe = strafe - 0.4;
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     } else if (lTrack1) {
-      turnRotation = -(turnRotation + turnSpeed(0.2));
+      turnRotation = turnRotation + turnSpeed(0.2);
       strafe = strafe + 0.25;
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     } else if (lTrack3) {
-      turnRotation = -(turnRotation + turnSpeed(0.2));
+      turnRotation = turnRotation + turnSpeed(0.2);
       strafe = strafe - 0.25;
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     } else if (lTrack2) {
-      turnRotation = -(turnRotation + turnSpeed(0.1));
+      turnRotation = turnRotation + turnSpeed(0.1);
       _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
     } else {
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
