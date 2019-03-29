@@ -107,6 +107,7 @@ public class Robot extends TimedRobot {
   boolean hatchPlacementJustUsed = false;
   boolean hatchIntakeJustUsed = false;
   double hatchEndTime = 0.0;
+  double pistonEndTime = 0.0;
 
   // climbing vars
   double stopClimbTime = 0;
@@ -313,41 +314,47 @@ public class Robot extends TimedRobot {
 
     // Turn Compresser on/off
     if (pneumatics) {
-      /*if (_joy2.getRawButton(2)) {
-        pneuVaccumeIsOn = true;
-        pneuVacuum.set(DoubleSolenoid.Value.kForward);
-        pneuHatchPanelTop.set(DoubleSolenoid.Value.kReverse);
-        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kReverse);
-      } else if (pneuVaccumeIsOn) {
-        pneuHatchPanelTop.set(DoubleSolenoid.Value.kForward);
-        pneuHatchPanelBottom.set(DoubleSolenoid.Value.kForward);
-        vaccumeEndTime = System.currentTimeMillis() + 4000;
-        pneuVaccumeIsOn = false;
-      } else {
-        if (vaccumeEndTime == 0 || vaccumeEndTime <= System.currentTimeMillis()) {
-          pneuVacuum.set(DoubleSolenoid.Value.kReverse);
-        }
-      }*/
       if (_joy2.getRawButton(2)) { // Hatch dropoff
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
         hatchPlacementJustUsed = true;
       } else if (hatchPlacementJustUsed) {
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
-        hatchEndTime = System.currentTimeMillis() + 2000;
+        hatchEndTime = System.currentTimeMillis() + 1000;
+        pistonEndTime = hatchEndTime + 1000;
         hatchPlacementJustUsed = false;
       } else if (_joy2.getRawButton(1)) { // Hatch pickup
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
         hatchIntakeJustUsed = true;
       } else if (hatchIntakeJustUsed) {
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
-        hatchEndTime = System.currentTimeMillis() + 500;
+        hatchEndTime = System.currentTimeMillis() + 1000;
         hatchIntakeJustUsed = false;
       } else if (hatchEndTime <= System.currentTimeMillis()) { // Hatch defalt
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
+        if(pistonEndTime <= System.currentTimeMillis()) {
+          pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
+        }
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
       }
+      /*boolean pistonIsExtended = false;
+      if (_joy2.getRawButton(2) && !pistonIsExtended) { // Hatch dropoff
+        pistonIsExtended = true;
+      } else if(_joy2.getRawButton(2) && pistonIsExtended) {
+        pistonIsExtended = false;
+      }
+
+      if(pistonIsExtended){
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
+      } else {
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
+      }
+
+      if (_joy2.getRawButton(1)) {
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
+      } else {
+        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+      }*/
     }
   }
 
@@ -449,6 +456,8 @@ public class Robot extends TimedRobot {
         // deploy front lifter
         if (limitSwitches && !limitSwitchFrontLift.get()) {
           frontLifterMotors.set(_joy1.getRawAxis(3));
+        } else {
+          frontLifterMotors.set(0.0);
         }
         _rearLifterMotor.set(0.0);
       } else if (_joy1.getRawButton(6)) {
@@ -462,7 +471,7 @@ public class Robot extends TimedRobot {
       if (Math.abs(-_joy1.getRawAxis(2)) > 0.1) {
         // deploy rear lifter
         frontLifterMotors.set(0.0);
-        _rearLifterMotor.set(_joy1.getRawAxis(2));
+        _rearLifterMotor.set(-_joy1.getRawAxis(2));
       } else if (_joy1.getRawButton(5)) {
         // retract rear lifter
         frontLifterMotors.set(0.0);
@@ -484,17 +493,17 @@ public class Robot extends TimedRobot {
     double lowerInTake = _joy2.getRawAxis(1);
     if (lowerInTake > 0.05 || lowerInTake < -0.05) {
       if (lowerInTake < 0) {
-        _intakeLifterMotor.set(lowerInTake); // Down
+        _intakeLifterMotor.set(lowerInTake / 3); // Down
         cycles++;
       } else {
-        if (cycles > 25) {
+        if (cycles > 50) {
           _intakeLifterMotor.set(lowerInTake); // Full Speed Up
           continueFullSpeedUntil = System.currentTimeMillis() + 400;
         } else {
           if (System.currentTimeMillis() <= continueFullSpeedUntil) {
-            _intakeLifterMotor.set(lowerInTake); // Continue Full Speed Up (half speed temperarily)
+            _intakeLifterMotor.set(lowerInTake / 2); // Continue Full Speed Up
           } else {
-            _intakeLifterMotor.set(lowerInTake); // Normal Up
+            _intakeLifterMotor.set(lowerInTake / 4); // Normal Up
           }
         }
         cycles = 0;
