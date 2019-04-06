@@ -108,6 +108,8 @@ public class Robot extends TimedRobot {
   boolean hatchIntakeJustUsed = false;
   double hatchEndTime = 0.0;
   double pistonEndTime = 0.0;
+  double pistonStartTime = 0.0; 
+  double clawEndTime = 0.0;
 
   // climbing vars
   double stopClimbTime = 0;
@@ -117,9 +119,6 @@ public class Robot extends TimedRobot {
   // Limit switches
   DigitalInput limitSwitchRearLift;
   DigitalInput limitSwitchFrontLift;
-  // DigitalInput limitSwitchRearDrop;
-  // DigitalInput limitSwitchIntakeUp;
-  // DigitalInput limitSwitchIntakeDown;
 
   // Digital Limit
   /*
@@ -321,22 +320,31 @@ public class Robot extends TimedRobot {
       } else if (hatchPlacementJustUsed) {
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
         hatchEndTime = System.currentTimeMillis() + 1000;
-        pistonEndTime = hatchEndTime + 1000;
+        pistonEndTime = hatchEndTime + 500;
+        clawEndTime = hatchEndTime + 1000;
         hatchPlacementJustUsed = false;
-      } else if (_joy2.getRawButton(1)) { // Hatch pickup
+      } else if (_joy2.getRawButton(1) && pistonStartTime > System.currentTimeMillis()) { // Hatch pickup
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
         hatchIntakeJustUsed = true;
+	  } else if (_joy2.getRawButton(1) && pistonStartTime <= System.currentTimeMillis()) {
+        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
+		hatchIntakeJustUsed = true;
       } else if (hatchIntakeJustUsed) {
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
-        hatchEndTime = System.currentTimeMillis() + 1000;
+        hatchEndTime = System.currentTimeMillis() + 500;
         hatchIntakeJustUsed = false;
       } else if (hatchEndTime <= System.currentTimeMillis()) { // Hatch defalt
         if(pistonEndTime <= System.currentTimeMillis()) {
           pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
         }
-        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+        if(clawEndTime <= System.currentTimeMillis()) {
+          pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
+        }
+        
       }
+	  if(!_joy2.getRawButton(1)) {
+		pistonStartTime = System.currentTimeMillis() + 500;
+	  }
       /*boolean pistonIsExtended = false;
       if (_joy2.getRawButton(2) && !pistonIsExtended) { // Hatch dropoff
         pistonIsExtended = true;
@@ -423,7 +431,7 @@ public class Robot extends TimedRobot {
         climbInitialize = false;
       }
       // get climb speeds
-      rearLiftSpeed = frontLiftSpeed * 1.0;
+      rearLiftSpeed = frontLiftSpeed * 1.1;
       yDegree = Math.round(imu.getAngleY()) % 360;
       if (yDegree > startClimbDegree + 5 && yDegree < startClimbDegree + 180) {
         rearLiftSpeed = rearLiftSpeed + 0.4; // Increase Speed to rear if front is too fast
@@ -497,8 +505,8 @@ public class Robot extends TimedRobot {
         cycles++;
       } else {
         if (cycles > 50) {
-          _intakeLifterMotor.set(lowerInTake); // Full Speed Up
-          continueFullSpeedUntil = System.currentTimeMillis() + 400;
+          _intakeLifterMotor.set(lowerInTake / 2); // Full Speed Up
+          continueFullSpeedUntil = System.currentTimeMillis() + 550;
         } else {
           if (System.currentTimeMillis() <= continueFullSpeedUntil) {
             _intakeLifterMotor.set(lowerInTake / 2); // Continue Full Speed Up
@@ -517,13 +525,13 @@ public class Robot extends TimedRobot {
     double ballInTakeOut = _joy2.getRawAxis(3);
     if (ballInTakeIn > 0.05 || ballInTakeIn < -0.05) {
       _intakeLowerMotor.set(ballInTakeIn);
-      _intakeUpperMotor.set(ballInTakeIn);
+      _intakeUpperMotor.set(ballInTakeIn * .5);
     } else if (ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
       _intakeLowerMotor.set(-ballInTakeOut / 2);
       _intakeUpperMotor.set(-ballInTakeOut / 2);
     } else if (_joy2.getRawButton(5)) {
       _intakeLowerMotor.set(1.0);
-      _intakeUpperMotor.set(1.0);
+      _intakeUpperMotor.set(1.0 * .5);
     } else if (_joy2.getRawButton(6)) {
       _intakeLowerMotor.set(-0.5);
       _intakeUpperMotor.set(-0.5);
@@ -544,7 +552,7 @@ public class Robot extends TimedRobot {
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
       xDegree = Math.round(imu.getAngleX()) % 360;
-      // Invert due to roborio orentation/position/location/placement
+      // Invert due to roborio orentation/position/loation/placement
       if (xDegree <= 0) {
         xDegree = Math.abs(xDegree);
       } else if (xDegree == 360) {
