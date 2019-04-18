@@ -419,7 +419,7 @@ public class Robot extends TimedRobot {
   // Locate the nearest target angle for our line tracker
   public double getPOVDegree(double xDegree) {
     double retDoub = -1;
-    //int povVal2 = _joy2.getPOV(); // If driver indicate override use it
+    // int povVal2 = _joy2.getPOV(); // If driver indicate override use it
     int povVal2 = _joy1.getPOV(); // If driver indicate override use it
     if (povVal2 >= 0) {
       retDoub = povVal2;
@@ -553,7 +553,14 @@ public class Robot extends TimedRobot {
         strafe = 1.0;
       }
     }
-    turnRotation = _joy1.getRawAxis(4) * 0.4;
+    double turnSpeedLimit = 0.4;
+    // MotionSpeed is the amount of forward or linear movement speed.
+    double motionSpeed = Math.max(Math.abs(strafe), Math.abs(forwardMotion));
+    if (motionSpeed > 0) {
+      turnSpeedLimit = (turnSpeedLimit * motionSpeed);
+    }
+    turnRotation = _joy1.getRawAxis(4) * turnSpeedLimit;
+    ;
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
       xDegree = Math.round(imu.getAngleX()) % 360;
@@ -577,11 +584,11 @@ public class Robot extends TimedRobot {
           lTrack2 = lineTracker2.get();
           lTrack3 = lineTracker3.get();
           lTrack4 = lineTracker4.get();
-          //lTrack0 = false;
-          //lTrack1 = false;
-          //lTrack2 = true;
-          //lTrack3 = false;
-          //lTrack4 = false;
+          // lTrack0 = false;
+          // lTrack1 = false;
+          // lTrack2 = true;
+          // lTrack3 = false;
+          // lTrack4 = false;
         } catch (Exception ex) {
           targetDegree = -1;
         }
