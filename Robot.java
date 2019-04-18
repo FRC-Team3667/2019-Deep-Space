@@ -108,7 +108,7 @@ public class Robot extends TimedRobot {
   boolean hatchIntakeJustUsed = false;
   double hatchEndTime = 0.0;
   double pistonEndTime = 0.0;
-  double pistonStartTime = 0.0; 
+  double pistonStartTime = 0.0;
   double clawEndTime = 0.0;
 
   // climbing vars
@@ -266,9 +266,6 @@ public class Robot extends TimedRobot {
     if (limitSwitches) {
       limitSwitchRearLift = new DigitalInput(5);
       limitSwitchFrontLift = new DigitalInput(6);
-      // limitSwitchRearDrop = new DigitalInput(6);
-      // limitSwitchIntakeUp = new DigitalInput(7);
-      // limitSwitchIntakeDown = new DigitalInput(8);
     }
     climbInitialize = true;
   }
@@ -286,8 +283,8 @@ public class Robot extends TimedRobot {
       imuCalibration();
     }
 
-    // Reset the imu when the "Y" yellow button is pressed
-    if ((_joy1.getRawButton(3) || _joy2.getRawButton(3)) && tenDegrees) {
+    // Reset the imu
+    if ((_joy1.getRawButton(7) || _joy2.getRawButton(7)) && tenDegrees) {
       imu.reset();
       imuIsWorkingCorrectly = true;
       SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
@@ -297,19 +294,49 @@ public class Robot extends TimedRobot {
     if (limitSwitches) {
       SmartDashboard.putBoolean("Rear Limit", limitSwitchRearLift.get());
     }
-    // Show the needed data to the Smart Dashboard
-    SmartDashboard.putNumber("zDegree", zDegree);
-    SmartDashboard.putNumber("xDegree", xDegree);
-    SmartDashboard.putNumber("yDegree", yDegree);
-    SmartDashboard.putNumber("targetDegree", targetDegree);
-    SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
-    SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
-    SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
-    SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
-    SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
-    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
-    SmartDashboard.putNumber("frontspeed", frontLiftSpeed);
-    SmartDashboard.putNumber("rearspeed", rearLiftSpeed);
+
+    // Intake Logic Begins Here
+    double lowerInTake = _joy2.getRawAxis(1);
+    if (lowerInTake > 0.05 || lowerInTake < -0.05) {
+      if (lowerInTake < 0) {
+        _intakeLifterMotor.set(lowerInTake / 3); // Down
+        cycles++;
+      } else {
+        if (cycles > 50) {
+          _intakeLifterMotor.set(lowerInTake / 2); // Full Speed Up
+          continueFullSpeedUntil = System.currentTimeMillis() + 550;
+        } else {
+          if (System.currentTimeMillis() <= continueFullSpeedUntil) {
+            _intakeLifterMotor.set(lowerInTake / 2); // Continue Full Speed Up
+          } else {
+            _intakeLifterMotor.set(lowerInTake / 4); // Normal Up
+          }
+        }
+        cycles = 0;
+      }
+    } else {
+      _intakeLifterMotor.set(0); // Stop motion
+    }
+
+    // Intake logic to receive and give a ball
+    double ballInTakeIn = _joy2.getRawAxis(2);
+    double ballInTakeOut = _joy2.getRawAxis(3);
+    if (ballInTakeIn > 0.05 || ballInTakeIn < -0.05) {
+      _intakeLowerMotor.set(ballInTakeIn);
+      _intakeUpperMotor.set(ballInTakeIn * .5);
+    } else if (ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
+      _intakeLowerMotor.set(-ballInTakeOut / 2);
+      _intakeUpperMotor.set(-ballInTakeOut / 2);
+    } else if (_joy2.getRawButton(5)) {
+      _intakeLowerMotor.set(1.0);
+      _intakeUpperMotor.set(1.0 * .5);
+    } else if (_joy2.getRawButton(6)) {
+      _intakeLowerMotor.set(-0.5);
+      _intakeUpperMotor.set(-0.5);
+    } else {
+      _intakeLowerMotor.set(0);
+      _intakeUpperMotor.set(0);
+    }
 
     // Turn Compresser on/off
     if (pneumatics) {
@@ -326,44 +353,40 @@ public class Robot extends TimedRobot {
       } else if (_joy2.getRawButton(1) && pistonStartTime > System.currentTimeMillis()) { // Hatch pickup
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
         hatchIntakeJustUsed = true;
-	  } else if (_joy2.getRawButton(1) && pistonStartTime <= System.currentTimeMillis()) {
+      } else if (_joy2.getRawButton(1) && pistonStartTime <= System.currentTimeMillis()) {
         pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
-		hatchIntakeJustUsed = true;
+        hatchIntakeJustUsed = true;
       } else if (hatchIntakeJustUsed) {
         pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
         hatchEndTime = System.currentTimeMillis() + 500;
         hatchIntakeJustUsed = false;
       } else if (hatchEndTime <= System.currentTimeMillis()) { // Hatch defalt
-        if(pistonEndTime <= System.currentTimeMillis()) {
+        if (pistonEndTime <= System.currentTimeMillis()) {
           pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
         }
-        if(clawEndTime <= System.currentTimeMillis()) {
+        if (clawEndTime <= System.currentTimeMillis()) {
           pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
         }
-        
-      }
-	  if(!_joy2.getRawButton(1)) {
-		pistonStartTime = System.currentTimeMillis() + 500;
-	  }
-      /*boolean pistonIsExtended = false;
-      if (_joy2.getRawButton(2) && !pistonIsExtended) { // Hatch dropoff
-        pistonIsExtended = true;
-      } else if(_joy2.getRawButton(2) && pistonIsExtended) {
-        pistonIsExtended = false;
-      }
 
-      if(pistonIsExtended){
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kForward);
-      } else {
-        pneuHatchPanelPiston.set(DoubleSolenoid.Value.kReverse);
       }
-
-      if (_joy2.getRawButton(1)) {
-        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kForward);
-      } else {
-        pneuHatchPanelClaw.set(DoubleSolenoid.Value.kReverse);
-      }*/
+      if (!_joy2.getRawButton(1)) {
+        pistonStartTime = System.currentTimeMillis() + 500;
+      }
     }
+
+    // Show the needed data to the Smart Dashboard
+    SmartDashboard.putNumber("zDegree", zDegree);
+    SmartDashboard.putNumber("xDegree", xDegree);
+    SmartDashboard.putNumber("yDegree", yDegree);
+    SmartDashboard.putNumber("targetDegree", targetDegree);
+    SmartDashboard.putBoolean("Line Tracker 0", lTrack0);
+    SmartDashboard.putBoolean("Line Tracker 1", lTrack1);
+    SmartDashboard.putBoolean("Line Tracker 2", lTrack2);
+    SmartDashboard.putBoolean("Line Tracker 3", lTrack3);
+    SmartDashboard.putBoolean("Line Tracker 4", lTrack4);
+    SmartDashboard.putBoolean("IMU Working", imuIsWorkingCorrectly);
+    SmartDashboard.putNumber("frontspeed", frontLiftSpeed);
+    SmartDashboard.putNumber("rearspeed", rearLiftSpeed);
   }
 
   // This, before match has begun, should go periodically until done once
@@ -396,7 +419,8 @@ public class Robot extends TimedRobot {
   // Locate the nearest target angle for our line tracker
   public double getPOVDegree(double xDegree) {
     double retDoub = -1;
-    int povVal2 = _joy2.getPOV(); // If driver indicate override use it
+    //int povVal2 = _joy2.getPOV(); // If driver indicate override use it
+    int povVal2 = _joy1.getPOV(); // If driver indicate override use it
     if (povVal2 >= 0) {
       retDoub = povVal2;
     }
@@ -416,6 +440,28 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     runMode = RunningInMode.teleop;
+  }
+
+  public double turnSpeed(double fullspeed) {
+    double returnSpeed = fullspeed;
+    if (xDegree >= targetDegree) {
+      if (xDegree - targetDegree > 2) { // if we are outside of 2 degrees of accuracy
+        if (targetDegree == 0 && xDegree > 270) {
+          returnSpeed = returnSpeed * 1.0; // we are overlapping zero
+        } else {
+          returnSpeed = returnSpeed * -1.0;
+        }
+      }
+    } else {
+      if (targetDegree - xDegree > 2) { // if we are outside of 2 degrees of accuracy
+        if (targetDegree == 0 && xDegree > 270) {
+          returnSpeed = returnSpeed * -1.0; // we are overlapping zero
+        } else {
+          returnSpeed = returnSpeed * 1.0;
+        }
+      }
+    }
+    return returnSpeed;
   }
 
   @Override
@@ -497,53 +543,12 @@ public class Robot extends TimedRobot {
       }
     }
 
-    // Intake Logic Begins Here
-    double lowerInTake = _joy2.getRawAxis(1);
-    if (lowerInTake > 0.05 || lowerInTake < -0.05) {
-      if (lowerInTake < 0) {
-        _intakeLifterMotor.set(lowerInTake / 3); // Down
-        cycles++;
-      } else {
-        if (cycles > 50) {
-          _intakeLifterMotor.set(lowerInTake / 2); // Full Speed Up
-          continueFullSpeedUntil = System.currentTimeMillis() + 550;
-        } else {
-          if (System.currentTimeMillis() <= continueFullSpeedUntil) {
-            _intakeLifterMotor.set(lowerInTake / 2); // Continue Full Speed Up
-          } else {
-            _intakeLifterMotor.set(lowerInTake / 4); // Normal Up
-          }
-        }
-        cycles = 0;
-      }
-    } else {
-      _intakeLifterMotor.set(0); // Stop motion
-    }
-
-    // Intake logic to receive and give a ball
-    double ballInTakeIn = _joy2.getRawAxis(2);
-    double ballInTakeOut = _joy2.getRawAxis(3);
-    if (ballInTakeIn > 0.05 || ballInTakeIn < -0.05) {
-      _intakeLowerMotor.set(ballInTakeIn);
-      _intakeUpperMotor.set(ballInTakeIn * .5);
-    } else if (ballInTakeOut > 0.05 || ballInTakeOut < -0.05) {
-      _intakeLowerMotor.set(-ballInTakeOut / 2);
-      _intakeUpperMotor.set(-ballInTakeOut / 2);
-    } else if (_joy2.getRawButton(5)) {
-      _intakeLowerMotor.set(1.0);
-      _intakeUpperMotor.set(1.0 * .5);
-    } else if (_joy2.getRawButton(6)) {
-      _intakeLowerMotor.set(-0.5);
-      _intakeUpperMotor.set(-0.5);
-    } else {
-      _intakeLowerMotor.set(0);
-      _intakeUpperMotor.set(0);
-    }
+    // Start of line tracking code.
 
     // Setup Stafe values
     double strafe = 0;
     if (_joy1.getRawAxis(0) > 0.05 || _joy1.getRawAxis(0) < -0.05) {
-      strafe = _joy1.getRawAxis(0) * 1.25;
+      strafe = _joy1.getRawAxis(0) * 1.5;
       if (strafe > 1.0) {
         strafe = 1.0;
       }
@@ -552,7 +557,7 @@ public class Robot extends TimedRobot {
     if (tenDegrees) {
       zDegree = Math.round(imu.getAngleZ()) % 360;
       xDegree = Math.round(imu.getAngleX()) % 360;
-      // Invert due to roborio orentation/position/loation/placement
+      // Invert due to roborio orentation/position/location/placement
       if (xDegree <= 0) {
         xDegree = Math.abs(xDegree);
       } else if (xDegree == 360) {
@@ -572,40 +577,49 @@ public class Robot extends TimedRobot {
           lTrack2 = lineTracker2.get();
           lTrack3 = lineTracker3.get();
           lTrack4 = lineTracker4.get();
+          //lTrack0 = false;
+          //lTrack1 = false;
+          //lTrack2 = true;
+          //lTrack3 = false;
+          //lTrack4 = false;
         } catch (Exception ex) {
           targetDegree = -1;
         }
       }
       if (targetDegree >= 0 && imuIsWorkingCorrectly) { // Line Tracker Enabled
-    if (lTrack0) {
-      turnRotation = turnRotation + turnSpeed(0.3);
-      strafe = strafe + 0.4;
-      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-    } else if (lTrack4) {
-      turnRotation = turnRotation + turnSpeed(0.3);
-      strafe = strafe - 0.4;
-      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-    } else if (lTrack1) {
-      turnRotation = turnRotation + turnSpeed(0.2);
-      strafe = strafe + 0.25;
-      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-    } else if (lTrack3) {
-      turnRotation = turnRotation + turnSpeed(0.2);
-      strafe = strafe - 0.25;
-      _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-    } else if (lTrack2) {
-      turnRotation = turnRotation + turnSpeed(0.1);
-      _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
+        if (lTrack0) {
+          turnRotation = turnRotation + turnSpeed(0.5);
+          strafe = strafe - 0.6;
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        } else if (lTrack4) {
+          turnRotation = turnRotation + turnSpeed(0.5);
+          strafe = strafe + 0.6;
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        } else if (lTrack1) {
+          turnRotation = turnRotation + turnSpeed(0.4);
+          strafe = strafe - 0.4;
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        } else if (lTrack3) {
+          turnRotation = turnRotation + turnSpeed(0.4);
+          strafe = strafe + 0.4;
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        } else if (lTrack2) {
+          turnRotation = turnRotation + turnSpeed(0.25);
+          _mDrive.driveCartesian(0, forwardMotion, turnRotation, 0);
+        } else {
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        }
+      } else {
+        if (_joy1.getRawButton(3)) {
+          _mDrive.driveCartesian(strafe, 0.25, turnRotation, 0);
+        } else {
+          _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
+        }
+      }
     } else {
+      // The the mecanum drive is listed below
       _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
     }
-  } else {
-    _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-  }
-} else {
-  // The the mecanum drive is listed below
-  _mDrive.driveCartesian(strafe, forwardMotion, turnRotation, 0);
-}
     if (turnRotation < -0.2 || turnRotation > 0.2) {
       if (pastXDegree == xDegree) {
         xDegreeIterations++;
@@ -619,20 +633,10 @@ public class Robot extends TimedRobot {
     }
   }
 
-  public double turnSpeed(double fullspeed) {
-    double returnSpeed = fullspeed;
-    if (targetDegree == 0 && xDegree > 270) {
-      returnSpeed = returnSpeed * -1.0; // we are overlapping zero
-    }
-    if (xDegree > targetDegree) {
-      returnSpeed = returnSpeed * -1.0;
-    }
-    return returnSpeed;
-  }
-
   @Override
   public void testPeriodic() {
     teleopPeriodic();
     runMode = RunningInMode.test;
   }
 }
+// Olivia requests more lines.
