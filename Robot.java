@@ -556,7 +556,7 @@ public class Robot extends TimedRobot {
     double turnSpeedLimit = 0.4;
     // MotionSpeed is the amount of forward or linear movement speed.
     double motionSpeed = Math.max(Math.abs(strafe), Math.abs(forwardMotion));
-    if (motionSpeed > 0) {
+    if (motionSpeed >= .5) {
       turnSpeedLimit = (turnSpeedLimit * motionSpeed);
     }
     turnRotation = _joy1.getRawAxis(4) * turnSpeedLimit;
